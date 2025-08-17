@@ -6,38 +6,49 @@ import {
   Form,
   Card,
   Offcanvas,
+  Table,
 } from "react-bootstrap";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import * as XLSX from "xlsx";
 import { API_BASE_URL } from "../api";
 import Breadcrumb from "./Components/Breadcrumb";
 import Pagination from "./Components/Pagination";
 import Search from "./Components/Search";
-import Select from "react-select";
 
 export default function ProductPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
-  const [pcbSerialOptions, setPcbSerialOptions] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("");
+
+  const downloadPurchaseAndCategoryExcel = (purchaseData, categoryData) => {
+    const purchaseSheet = XLSX.utils.json_to_sheet(purchaseData);
+    const categorySheet = XLSX.utils.json_to_sheet(categoryData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, purchaseSheet, "PCB Purchase Details");
+    XLSX.utils.book_append_sheet(workbook, categorySheet, "Category Details");
+    XLSX.writeFile(workbook, "Purchase_and_Category.xlsx");
+  };
 
   const [productData, setProductData] = useState({
     id: null,
     category_id: "",
     serial_no: "",
-    fromserial_no: "",
-    toserial_no: "",
     manufacture_no: "",
     firmware_version: "",
     hsn_code: "",
+    sale_status: "Available", // Set default to 'Available'
     test: "",
   });
 
@@ -50,7 +61,7 @@ export default function ProductPage() {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const [pRes, cRes, bRes] = await Promise.all([
+      const [pRes, cRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/products`),
         axios.get(`${API_BASE_URL}/categories`),
       ]);
@@ -63,27 +74,6 @@ export default function ProductPage() {
     }
   };
 
-  useEffect(() => {
-    fetchPcbSerialNumbers();
-  }, []);
-
-  const fetchPcbSerialNumbers = async () => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/pcb-board-purchase-items`, {
-        params: { exclude_status: "Reserved" } // optional filter
-      });
-
-      const formattedOptions = res.data.map(item => ({
-        value: item.serial_no,
-        label: item.serial_no
-      }));
-
-      setPcbSerialOptions(formattedOptions);
-    } catch (err) {
-      toast.error("Failed to fetch PCB serial numbers!");
-    }
-  };
-
   const handleAddNewClick = () => {
     setIsEditing(false);
     setProductData({
@@ -91,65 +81,60 @@ export default function ProductPage() {
       category_id: "",
       serial_no: "",
       manufacture_no: "",
-      fromserial_no: "",
-      toserial_no: "",
       firmware_version: "",
       hsn_code: "",
+      sale_status: "Available", // Set default to 'Available'
       test: "",
     });
     setShowModal(true);
   };
 
-const handleEdit = (product) => {
-  setIsEditing(true);
-
-  const cleanSerial = product.serial_no ? product.serial_no.trim() : "";
-
-  // Add the current serial to the options if missing
-  if (cleanSerial && !pcbSerialOptions.some(opt => opt.value === cleanSerial)) {
-    setPcbSerialOptions(prev => [
-      ...prev,
-      { value: cleanSerial, label: cleanSerial }
-    ]);
-  }
-
-  setProductData({
-    ...product,
-    serial_no: cleanSerial,
-    fromserial_no: product.fromserial_no ? product.fromserial_no.trim() : "",
-    toserial_no: product.toserial_no ? product.toserial_no.trim() : "",
-  });
-
-  setShowModal(true);
-};
-
+  const handleEdit = (product) => {
+    setIsEditing(true);
+    setProductData({ ...product });
+    setShowModal(true);
+  };
 
   const handleDelete = async (id) => {
-  const result = await MySwal.fire({
-    title: "Are you sure?",
-    text: "Do you really want to delete this product?",
-    icon: "warning",
-    showCancelButton: true,
-     confirmButtonColor: "#d33",
-      cancelButtonColor: "#2FA64F",
-    confirmButtonText: "Yes, delete it!",
-    customClass: {
-      popup: "custom-compact" // ✅ only once
+    const result = await MySwal.fire({
+      title: "Are you sure?",
+      text: "Do you really want to delete this product?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
+      didOpen: (popup) => {
+        const title = popup.querySelector(".swal2-title");
+        const content = popup.querySelector(".swal2-html-container");
+        const confirmBtn = popup.querySelector(".swal2-confirm");
+        const cancelBtn = popup.querySelector(".swal2-cancel");
+        const container = popup.querySelector(".swal2-popup");
+
+        if (title) title.style.fontSize = "0.9rem";
+        if (content) content.style.fontSize = "0.8rem";
+        if (confirmBtn) confirmBtn.style.fontSize = "0.85rem";
+        if (cancelBtn) cancelBtn.style.fontSize = "0.85rem";
+
+        if (container) {
+          container.style.width = "150px";
+          container.style.height = "100px";
+          container.style.maxHeight = "90vh";
+          container.style.padding = "0.5rem 0.5rem";
+        }
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await axios.delete(`${API_BASE_URL}/products/${id}`);
+      toast.success("Product deleted!");
+      fetchAllData();
+    } catch {
+      toast.error("Failed to delete product!");
     }
-  });
-
-  if (!result.isConfirmed) return;
-
-  try {
-    await axios.delete(`${API_BASE_URL}/products/${id}`);
-    toast.success("Product deleted!");
-    fetchAllData();
-  } catch {
-    toast.error("Failed to delete product!");
-  }
-};
-
-
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -162,17 +147,18 @@ const handleEdit = (product) => {
         updatedData.sale_status = "";
       }
     }
-
     setProductData(updatedData);
   };
 
   const validateForm = () => {
     const requiredFields = [
       { key: "category_id", label: "Category" },
+      { key: "serial_no", label: "Serial Number" },
       { key: "manufacture_no", label: "Manufacture Number" },
       { key: "firmware_version", label: "Firmware Version" },
       { key: "hsn_code", label: "HSN Code" },
       { key: "test", label: "Test Status" },
+      { key: "sale_status", label: "Sale Status" },
     ];
     for (const field of requiredFields) {
       const value = productData[field.key];
@@ -186,32 +172,6 @@ const handleEdit = (product) => {
 
   const handleSave = async () => {
     if (!validateForm()) return;
-
-    if (!isEditing) {
-      const serial = (productData.serial_no || "").trim();
-      const fromS = (productData.fromserial_no || "").trim();
-      const toS = (productData.toserial_no || "").trim();
-
-      const singleFilled = !!serial;
-      const anyRangeFilled = !!fromS || !!toS;
-      const fullRangeFilled = !!fromS && !!toS;
-
-      if (singleFilled && anyRangeFilled) {
-        toast.error("Please provide either Single Serial No OR From & To Serial, not both.");
-        return;
-      }
-
-      if (!singleFilled && !fullRangeFilled) {
-        toast.error("Please provide Single Serial No OR both From & To Serial.");
-        return;
-      }
-
-      if (!singleFilled && anyRangeFilled && !fullRangeFilled) {
-        toast.error("Please select both From Serial and To Serial.");
-        return;
-      }
-    }
-
     try {
       if (isEditing) {
         await axios.put(`${API_BASE_URL}/products/${productData.id}`, productData);
@@ -223,8 +183,8 @@ const handleEdit = (product) => {
 
       setShowModal(false);
       fetchAllData();
-    } catch (err) {
-      toast.error(`${err.response.data.message}`);
+    } catch {
+      toast.error("Failed to save product!");
     }
   };
 
@@ -237,11 +197,116 @@ const handleEdit = (product) => {
     }
   };
 
-  const filteredProducts = products.filter((p) => {
+  const handleDownloadExcel = async () => {
+    try {
+      const pcbRes = await axios.get(`${API_BASE_URL}/excelist`);
+      const catRes = await axios.get(`${API_BASE_URL}/categories`);
+      
+
+const purchaseData = pcbRes.data.map((p) => ({
+  'Serial Number': p.serial_no || "",
+  'Invoice No': p.invoice_no || "",
+  'Invoice Date': p.invoice_date || "",
+  'Vendor': p.vendor || "",
+  'Category': p.category || "",
+}));
+      const categoryData = catRes.data.map((c) => ({
+        ID: c.id,
+        Category: c.category,
+      }));
+
+      downloadPurchaseAndCategoryExcel(purchaseData, categoryData);
+      toast.success("Excel file downloaded successfully!");
+    } catch (err) {
+      console.error("Download failed", err);
+      toast.error("Excel download failed!");
+    }
+  };
+  
+const handleDownloadSampleExcel = () => {
+    // Correctly map the data to get the category name.
+    // The `p.category?.category` syntax safely accesses the nested category name.
+    const dataToExport = filteredProducts.map(p => ({
+        'Category Name': p.category?.category || "", // <-- Changed from category_id to 'Category Name' and p.category?.category
+        'Serial No': p.serial_no,
+        'Manufacture No': p.manufacture_no,
+        'Firmware Version': p.firmware_version,
+        'HSN Code': p.hsn_code,
+        'Sale Status': p.sale_status,
+        'Test': p.test,
+    }));
+
+    // Define the headers to match the new object keys.
+    const headers = [
+        "Category Name", // <-- Changed the header to match
+        "Serial No",
+        "Manufacture No",
+        "Firmware Version",
+        "HSN Code",
+        "Sale Status",
+        "Test",
+    ];
+
+    // If there's no data, create a blank sheet with headers.
+    if (dataToExport.length === 0) {
+        dataToExport.push({});
+    }
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport, { header: headers });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Product_Sample");
+    XLSX.writeFile(wb, "Product_Sample_Template.xlsx");
+
+    toast.success("Sample Excel file downloaded successfully!");
+};
+  const handleImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      setImporting(true);
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const parsedData = XLSX.utils.sheet_to_json(sheet);
+
+        if (!parsedData || parsedData.length === 0) {
+          toast.error("No data found in the Excel file.");
+          return;
+        }
+
+        const res = await axios.post(`${API_BASE_URL}/products/bulk`, parsedData);
+        const { message, success_count, failed_count, failed } = res.data;
+
+        toast.success(`${message} — ${success_count} products imported successfully`);
+
+        if (failed_count > 0 && failed.length > 0) {
+          failed.forEach(item => {
+            toast.error(`Serial: ${item.serial_no} — ${item.error}`);
+          });
+        }
+
+        setShowImportModal(false);
+        fetchAllData();
+      } catch (error) {
+        console.error("Import error:", error);
+        toast.error("Something went wrong during import.");
+      } finally {
+        setImporting(false);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  let filteredProducts = products.filter((p) => {
     const searchTerm = search.toLowerCase();
-    return (
+    const isMatchingSearch = (
       p.serial_no?.toLowerCase().includes(searchTerm) ||
-      p.batch?.batch?.toLowerCase().includes(searchTerm) ||
       p.category?.category?.toLowerCase().includes(searchTerm) ||
       p.manufacture_no?.toLowerCase().includes(searchTerm) ||
       p.firmware_version?.toLowerCase().includes(searchTerm) ||
@@ -249,12 +314,13 @@ const handleEdit = (product) => {
       p.test?.toLowerCase().includes(searchTerm) ||
       p.sale_status?.toLowerCase().includes(searchTerm)
     );
+    const isMatchingCategory = !selectedCategory || String(p.category_id) === String(selectedCategory);
+    return isMatchingSearch && isMatchingCategory;
   });
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     if (!sortField) return 0;
     const getValue = (obj) => {
-      if (sortField === "batch") return obj.batch?.batch || "";
       if (sortField === "category") return obj.category?.category || "";
       return obj[sortField] || "";
     };
@@ -270,14 +336,34 @@ const handleEdit = (product) => {
   return (
     <div className="px-4" style={{ fontSize: "0.75rem" }}>
       <Breadcrumb title="Products" />
-
-      <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
+      <Card className="border-0 shadow-sm rounded-3 p-3 mt-2 bg-white">
         <div className="row mb-2">
-          <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
-            <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
+          {/* NEW: Category filter dropdown */}
+          <div className="col-md-2 d-flex align-items-center mb-2 mb-md-0">
             <Form.Select
               size="sm"
-              style={{ width: "100px" }}
+              value={selectedCategory}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setPage(1); // Reset to the first page when the filter changes
+              }}
+              style={{ fontSize: "0.8rem" }}
+            >
+              <option value="">All Categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.category}
+                </option>
+              ))}
+            </Form.Select>
+          </div>
+          <div className="col-md-4 d-flex align-items-center mb-2 mb-md-0">
+            <label className="me-2 fw-semibold mb-0" style={{ fontSize: "0.8rem" }}>
+              Records Per Page:
+            </label>
+            <Form.Select
+              size="sm"
+              style={{ width: "90px", fontSize: "0.8rem", padding: "4px 8px" }}
               value={perPage}
               onChange={(e) => {
                 setPerPage(Number(e.target.value));
@@ -291,44 +377,95 @@ const handleEdit = (product) => {
               ))}
             </Form.Select>
           </div>
-          <div className="col-md-6 text-md-end" style={{ fontSize: '0.8rem' }}>
-            <div className="mt-2 d-inline-block mb-2" style={{ fontSize: '0.8rem' }}>
+          <div className="col-md-6 text-md-end" style={{ fontSize: "0.8rem" }}>
+            <div className="mt-2 d-inline-block mb-2">
               <Button
                 variant="outline-secondary"
                 size="sm"
-                className="me-2"
+                className="me-2 p-1"
                 onClick={fetchAllData}
                 style={{ fontSize: "0.8rem", minWidth: "32px", height: "28px" }}
               >
                 <i className="bi bi-arrow-clockwise"></i>
               </Button>
+              {/* NEW: Download Sample button */}
+              <Button
+                size="sm"
+                onClick={handleDownloadSampleExcel}
+                style={{
+                  backgroundColor: "#2E3A59",
+                  borderColor: "#2E3A59",
+                  color: "#fff",
+                  padding: "0.25rem 0.5rem",
+                  fontSize: "0.8rem",
+                  minWidth: "90px",
+                  height: "28px",
+                }}
+                className="btn-success text-white me-2"
+              >
+                Download Sample
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setShowImportModal(true)}
+                style={{
+                  backgroundColor: "#2E3A59",
+                  borderColor: "#2E3A59",
+                  color: "#fff",
+                  padding: "0.25rem 0.5rem",
+                  fontSize: "0.8rem",
+                  minWidth: "90px",
+                  height: "28px",
+                }}
+                className="btn-success text-white me-2"
+              >
+                Upload product
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleDownloadExcel}
+                style={{
+                  backgroundColor: "#2E3A59",
+                  borderColor: "#2E3A59",
+                  color: "#fff",
+                  padding: "0.25rem 0.5rem",
+                  fontSize: "0.8rem",
+                  minWidth: "90px",
+                  height: "28px",
+                }}
+                className="btn-success text-white me-2"
+              >
+                Download Excel
+              </Button>
               <Button
                 size="sm"
                 onClick={handleAddNewClick}
                 style={{
-                  backgroundColor: '#2FA64F',
-                  borderColor: '#2FA64F',
-                  color: '#fff',
-                  padding: '0.25rem 0.5rem',
-                  fontSize: '0.8rem',
-                  minWidth: '90px',
-                  height: '28px',
+                  backgroundColor: "#2FA64F",
+                  borderColor: "#2FA64F",
+                  color: "#fff",
+                  padding: "0.25rem 0.5rem",
+                  fontSize: "0.8rem",
+                  minWidth: "90px",
+                  height: "28px",
                 }}
                 className="btn-success text-white"
               >
                 + Add Product
               </Button>
             </div>
-            <Search
-              search={search}
-              setSearch={setSearch}
-              perPage={perPage}
-              setPerPage={setPerPage}
-              setPage={setPage}
-            />
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
+              <Search
+                search={search}
+                setSearch={setSearch}
+                perPage={perPage}
+                setPerPage={setPerPage}
+                setPage={setPage}
+                style={{ fontSize: "0.8rem" }}
+              />
+            </div>
           </div>
         </div>
-
         <div className="table-responsive">
           <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
             <thead
@@ -402,7 +539,7 @@ const handleEdit = (product) => {
               ) : paginatedProducts.length === 0 ? (
                 <tr>
                   <td colSpan="10" className="text-center py-3 text-muted" style={{ fontSize: "0.85rem" }}>
-                    <img src="/empty-box.png" alt="No products" style={{ width: "60px", opacity: 0.6 }} />
+                    No products found.
                   </td>
                 </tr>
               ) : (
@@ -411,7 +548,6 @@ const handleEdit = (product) => {
                     <td className="text-center" style={{ padding: "6px 8px", verticalAlign: "middle" }}>
                       {(page - 1) * perPage + index + 1}
                     </td>
-                    {/* <td style={{ padding: "6px 8px", verticalAlign: "middle" }}>{p.batch?.batch || "—"}</td> */}
                     <td style={{ padding: "6px 8px", verticalAlign: "middle" }}>{p.category?.category || "—"}</td>
                     <td style={{ padding: "6px 8px", verticalAlign: "middle" }}>{p.serial_no}</td>
                     <td style={{ padding: "6px 8px", verticalAlign: "middle" }}>{p.manufacture_no}</td>
@@ -454,7 +590,6 @@ const handleEdit = (product) => {
             </tbody>
           </table>
         </div>
-
         <Pagination
           page={page}
           setPage={setPage}
@@ -462,8 +597,6 @@ const handleEdit = (product) => {
           totalEntries={filteredProducts.length}
         />
       </Card>
-
-      {/* Offcanvas Sidebar for Add/Edit */}
       <Offcanvas
         show={showModal}
         onHide={() => setShowModal(false)}
@@ -472,20 +605,10 @@ const handleEdit = (product) => {
         className="custom-offcanvas "
         style={{ fontSize: "0.85rem" }}
       >
-        <Offcanvas.Header className="border-bottom">
-            <Offcanvas.Title className="fw-semibold">
-            {isEditing ? "Edit Product" : "Add Product"}
-            </Offcanvas.Title>
-                <div className="ms-auto">
-                    <Button
-                        variant="outline-secondary"
-                        onClick={() => setShowModal(false)}
-                        className="rounded-circle border-0 d-flex align-items-center justify-content-center"
-                        style={{ width: "32px", height: "32px" }}
-                    >
-                        <i className="bi bi-x-lg fs-6"></i>
-                    </Button>
-                </div>
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title className="fw-semibold">
+            {isEditing ? "Edit Product" : "Add New Product"}
+          </Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
           <Form className="row g-3">
@@ -506,87 +629,15 @@ const handleEdit = (product) => {
               </Form.Select>
             </Form.Group>
             <Form.Group className="col-md-6">
-              <Form.Label>Single Serial No.</Form.Label>
-              <Select
-                options={pcbSerialOptions}
-                value={
-                  pcbSerialOptions.find(opt => opt.value === productData.serial_no) || null
-                }
-                onChange={(selected) => {
-                  setProductData({
-                    ...productData,
-                    serial_no: selected ? selected.value : ""
-                  });
-                }}
-                isClearable
-                isSearchable
-                placeholder="Select Serial No."
-                styles={{
-                  control: (base) => ({
-                    ...base,
-                    minHeight: "31px",
-                    fontSize: "0.8rem"
-                  }),
-                  menu: (base) => ({
-                    ...base,
-                    fontSize: "0.8rem"
-                  })
-                }}
+              <Form.Label>Serial No.</Form.Label>
+              <Form.Control
+                name="serial_no"
+                value={productData.serial_no}
+                onChange={handleChange}
+                placeholder="Enter Serial No."
+                size="sm"
               />
             </Form.Group>
-            {!isEditing &&
-              <>
-                <Form.Group className="col-md-6">
-                  <Form.Label>From Serial Number</Form.Label>
-                  <Select
-                    options={pcbSerialOptions}
-                    value={pcbSerialOptions.find(opt => opt.value === productData.fromserial_no) || null}
-                    onChange={(selected) => {
-                      setProductData(prev => ({
-                        ...prev,
-                        fromserial_no: selected ? selected.value : ""
-                      }));
-                    }}
-                    isClearable
-                    isSearchable
-                    placeholder="Select From Serial"
-                    styles={{
-                      control: (base) => ({ ...base, minHeight: "31px", fontSize: "0.8rem" }),
-                      menu: (base) => ({ ...base, fontSize: "0.8rem" }),
-                    }}
-                  />
-                </Form.Group>
-
-                <Form.Group className="col-md-6">
-                  <Form.Label>To Serial Number</Form.Label>
-                  <Select
-                    options={pcbSerialOptions}
-                    value={pcbSerialOptions.find(opt => opt.value === productData.toserial_no) || null}
-                    onChange={(selected) => {
-                      setProductData(prev => ({
-                        ...prev,
-                        toserial_no: selected ? selected.value : ""
-                      }));
-                    }}
-                    isClearable
-                    isSearchable
-                    placeholder="Select To Serial"
-                    styles={{
-                      control: (base) => ({ ...base, minHeight: "31px", fontSize: "0.8rem" }),
-                      menu: (base) => ({ ...base, fontSize: "0.8rem" }),
-                    }}
-                  />
-                </Form.Group>
-                {/* <Form.Group className="col-md-6">
-                  <Form.Label>From Serial Number</Form.Label>
-                  <Form.Control size="sm" name="fromserial_no" value={productData.fromserial_no} onChange={handleChange} placeholder="Enter From Serial No." />
-                </Form.Group>
-                <Form.Group className="col-md-6">
-                  <Form.Label>To Serial Number</Form.Label>
-                  <Form.Control size="sm" name="toserial_no" value={productData.toserial_no} onChange={handleChange} placeholder="Enter To Serial No." />
-                </Form.Group> */}
-              </>
-            }
             <Form.Group className="col-md-6">
               <Form.Label>Manufacture No.</Form.Label>
               <Form.Control
@@ -630,17 +681,60 @@ const handleEdit = (product) => {
                 <option value="Issue">Issue</option>
               </Form.Select>
             </Form.Group>
+            <Form.Group className="col-md-6">
+              <Form.Label>Sale Status</Form.Label>
+              <Form.Select
+                name="sale_status"
+                value={productData.sale_status}
+                onChange={handleChange}
+                disabled={productData.test === "Issue"}
+                size="sm"
+              >
+                <option value="">Select Sale Status</option>
+                <option value="Available">Available</option>
+                <option value="Sold">Sold</option>
+                <option value="Reserved">Reserved</option>
+              </Form.Select>
+            </Form.Group>
           </Form>
-       <div className="d-flex justify-content-end gap-2 mt-3">
-                   <Button  className="btn-common btn-cancel" variant="light"   onClick={() => setShowModal(false)}>
-                     Cancel
-                   </Button>
-            <Button variant="success" className="btn-common btn-save" onClick={handleSave} size="sm">
+          <div className="d-flex justify-content-end mt-4">
+            <Button variant="success" onClick={handleSave} size="sm" style={{ minWidth: "120px" }}>
               {isEditing ? "Update" : "Save"}
             </Button>
           </div>
         </Offcanvas.Body>
       </Offcanvas>
+      <Offcanvas
+        show={showImportModal}
+        onHide={() => setShowImportModal(false)}
+        placement="end"
+        className="custom-offcanvas"
+        style={{ fontSize: "0.85rem" }}
+      >
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title className="fw-semibold">
+            upload product
+          </Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          <p>
+            Please upload a `.xlsx`, `.xls` file containing columns:{" "}
+            {/* <b>category_id, serial_no, manufacture_no, firmware_version, hsn_code, sale_status, test</b>. */}
+          </p>
+          <Form.Group controlId="formFile" className="mb-3">
+            <Form.Label>Upload Excel File</Form.Label>
+            <Form.Control type="file" onChange={handleImport} accept=".xlsx, .xls" />
+          </Form.Group>
+          {importing && (
+            <div className="text-center mt-4">
+              <Spinner animation="border" size="sm" />
+              <p>Importing...</p>
+            </div>
+          )}
+        </Offcanvas.Body>
+      </Offcanvas>
     </div>
   );
 }
+
+

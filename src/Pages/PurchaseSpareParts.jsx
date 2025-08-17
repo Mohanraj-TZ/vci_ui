@@ -346,7 +346,7 @@ export default function PurchaseSparepartsPage() {
     const handleFormSubmit = async e => {
         e.preventDefault();
         const vendor_id = formData.vendor_id;
-        const invoiceNo = formData.invoiceNo;
+const invoice_no = formData.invoiceNo;
         const notes = formData.notes || null;
         const invoice_date = invoiceDate;
 
@@ -362,7 +362,7 @@ export default function PurchaseSparepartsPage() {
 
         const payload = {
             vendor_id,
-            invoiceNo,
+            invoice_no,
             invoice_date,
             notes,
             items,
@@ -451,80 +451,74 @@ export default function PurchaseSparepartsPage() {
         }
     };
 
-    const handleReturnFormSubmit = async e => {
-        e.preventDefault();
-        setLoading(true);
+const handleReturnFormSubmit = async e => {
+    e.preventDefault();
+    setLoading(true);
 
-        const items = sparePartsRows
-            .map(row => ({
-                sparepart_id: row.sparepart_id,
-                quantity: parseInt(row.quantity, 10),
-            }))
-            .filter(i => i.sparepart_id && i.quantity > 0 && !isNaN(i.quantity));
+    const items = sparePartsRows
+        .map(row => ({
+            sparepart_id: row.sparepart_id,
+            quantity: parseInt(row.quantity, 10),
+        }))
+        .filter(i => i.sparepart_id && i.quantity > 0 && !isNaN(i.quantity));
 
-        const payload = {
-            vendor_id: formData.vendor_id,
-            invoice_no: formData.invoiceNo, // Ensure this matches backend expectation
-            return_date: returnDate,
-            notes: formData.notes || null,
-            items,
-        };
+    const payload = {
+        vendor_id: formData.vendor_id,
+        invoice_no: formData.invoiceNo,
+        return_date: returnDate,
+        notes: formData.notes || null,
+        items,
+    };
 
-        // Log payload for debugging
-        console.log("Submitting return payload:", JSON.stringify(payload, null, 2));
+    console.log("Submitting return payload:", JSON.stringify(payload, null, 2));
 
-        if (!validateForm(payload, items, true)) {
-            setLoading(false);
-            toast.error("Form validation failed. Please check the errors.");
-            return;
-        }
+    if (!validateForm(payload, items, true)) {
+        setLoading(false);
+        toast.error("Form validation failed. Please check the errors.");
+        return;
+    }
 
-        try {
-            if (editingReturn && editingReturn.id) {
-                const response = await axios.put(
-                    `${API_BASE_URL}/sparepart-returns/${editingReturn.id}`,
-                    payload,
-                    { headers: { "Content-Type": "application/json", Accept: "application/json" } }
-                );
-                if (response.data?.success) {
-                    toast.success("Return updated successfully");
-                    setReturns(prev => prev.map(r => (r.id === editingReturn.id ? { ...payload, id: editingReturn.id } : r)));
-                } else {
-                    throw new Error(response.data?.message || "Failed to update return");
-                }
-            } else {
-                const response = await axios.post(
-                    `${API_BASE_URL}/sparepart-returns`,
-                    payload,
-                    { headers: { "Content-Type": "application/json", Accept: "application/json" } }
-                );
-                if (response.data?.success && response.data?.data?.id) {
-                    toast.success("Return added successfully");
-                    setReturns(prev => [...prev, { ...payload, id: response.data.data.id }]);
-                } else {
-                    throw new Error(response.data?.message || "Failed to add return");
-                }
-            }
+    try {
+        if (editingReturn && editingReturn.id) {
+            await axios.put(
+                `${API_BASE_URL}/sparepart-returns/${editingReturn.id}`,
+                payload,
+                { headers: { "Content-Type": "application/json", Accept: "application/json" } }
+            );
+            toast.success("Return updated successfully!");
+            // Optimistically update state
+            setReturns(prev => prev.map(r => (r.id === editingReturn.id ? { ...payload, id: editingReturn.id } : r)));
+        } else {
+            const response = await axios.post(
+                `${API_BASE_URL}/sparepart-returns`,
+                payload,
+                { headers: { "Content-Type": "application/json", Accept: "application/json" } }
+            );
+            toast.success("Return added successfully!");
+            // Optimistically update state
+            if (response.data?.data?.id) {
+                setReturns(prev => [...prev, { ...payload, id: response.data.data.id }]);
+            }
+        }
 
-            // Reset form
-            setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
-            setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
-            setEditingReturn(null);
-            setShowReturnForm(false);
-            setReturnDate(new Date().toISOString().split("T")[0]);
-            setFormErrors({});
-        } catch (error) {
-            console.error("Error saving return:", error);
-            const errorMessage =
-                error.response?.data?.message ||
-                error.message ||
-                "Failed to save return. Please try again.";
-            toast.error(errorMessage);
-        } finally {
-            setLoading(false);
-        }
-    };
-    const handleDelete = async id => {
+        // Reset form after successful operation
+        setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
+        setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
+        setEditingReturn(null);
+        setShowReturnForm(false);
+        setReturnDate(new Date().toISOString().split("T")[0]);
+        setFormErrors({});
+    } catch (error) {
+        console.error("Error saving return:", error);
+        const errorMessage =
+            error.response?.data?.message ||
+            error.message ||
+            "Failed to save return. Please try again.";
+        toast.error(errorMessage);
+    } finally {
+        setLoading(false);
+    }
+};    const handleDelete = async id => {
         const result = await MySwal.fire({
             title: "Are you sure?",
             text: "Do you really want to delete this purchase?",

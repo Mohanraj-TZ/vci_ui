@@ -79,7 +79,7 @@ export default function vendor() {
             toast.success("Vendors loaded successfully!", { toastId: 'vendors-loaded', autoClose: 1500 });
         } catch (err) {
             console.error("Failed to load initial data:", err);
-            toast.error("Failed to load data.", { autoClose: 1500 });
+            // toast.error("Failed to load data.", { autoClose: 1500 });
         } finally {
             setLoading(false);
         }

@@ -42,6 +42,11 @@ import Vendor from './Pages/vendor';
 import VciCustomer from './Pages/VciCustomer';
 // import AddProduct from './Pages/AddProduct';
 
+ import ServiceList from './Pages/ServiceList';
+  import AddServicePage from './Pages/AddServicePage';
+    import EditService from './Pages/EditService';
+import TrackingPage from "./Pages/TrackingPage";
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('authToken'));
 
@@ -134,6 +139,11 @@ export default function App() {
           {/* Other Master Pages */}
           <Route path="Vendor" element={<Vendor />} />
           <Route path="VciCustomer" element={<VciCustomer />} />
+                    <Route path="serviceProduct" element={<ServiceList />} />
+          <Route path="/service-vci/add" element={<AddServicePage />} />
+<Route path="/service-vci/:id/edit" element={<EditService />} />
+                          <Route path="/tracking-by-challan/:id" element={<TrackingPage />} />
+
         </Route>
 
         {/* Fallback to default routes based on auth */}

@@ -3,7 +3,7 @@ import React from "react";
 import { Button } from "react-bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-export default function ActionButtons({ onPdf, onEdit, onDelete ,onReturn }) {
+export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTrack, onRepair }) {
   return (
     <>
       {onPdf && (
@@ -92,6 +92,52 @@ export default function ActionButtons({ onPdf, onEdit, onDelete ,onReturn }) {
           }}
         >
           <i className="bi bi-arrow-return-left"></i>
+        </Button>
+        
+      )}
+          {onTrack && (
+        <Button
+          size="sm"
+          variant="outline-primary"
+          title="Track"
+          onClick={onTrack}
+          className="me-1"
+          style={{
+            borderColor: "#2E3A59",
+            color: "#2E3A59",
+            backgroundColor: "transparent",
+            width: "32px",
+            height: "32px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "4px",
+          }}
+        >
+          <i className="bi bi-geo-alt"></i>
+        </Button>
+      )}
+
+      {onRepair && (
+        <Button
+          size="sm"
+          variant="outline-warning"
+          title="Repair"
+          onClick={onRepair}
+          className="me-1"
+          style={{
+            borderColor: "#2E3A59",
+            color: "#2E3A59",
+            backgroundColor: "transparent",
+            width: "32px",
+            height: "32px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "4px",
+          }}
+        >
+          <i className="bi bi-tools"></i>
         </Button>
       )}
     </>

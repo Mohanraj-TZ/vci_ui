@@ -19,7 +19,7 @@ const RepairModal = ({ show, onHide, onRepair, spareParts, selectedVci }) => {
   const [faultFoundDate, setFaultFoundDate] = useState("");
   const [repairDate, setRepairDate] = useState("");
   const [repairForms, setRepairForms] = useState([]);
-  const [errors, setErrors] = useState({}); // ✅ Added state for local errors
+  const [errors, setErrors] = useState({}); 
 
   const placeOptions = [
     { value: "Mahle", label: "Mahle" },
@@ -461,10 +461,10 @@ const handleShowTrackingModal = (item) => {
               <Button
                 variant="outline-secondary"
                 size="sm"
-                className="me-2"
+                className="me-1"
                 onClick={fetchServices}
               >
-                <span style={{ fontSize: "1.2rem", verticalAlign: "middle" }}>↻</span>
+                <span style={{ fontSize: "0.9rem", verticalAlign: "middle" }}>↻</span>
               </Button>
               <Button
                 size="sm"
@@ -476,9 +476,8 @@ const handleShowTrackingModal = (item) => {
                 }}
               >
                 <span className="me-1" style={{ fontSize: "1.2rem", verticalAlign: "middle" }}>
-                  +
                 </span>{" "}
-                Add Service VCI
+               + Add Service VCI
               </Button>
             </div>
 

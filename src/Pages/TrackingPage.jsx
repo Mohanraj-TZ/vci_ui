@@ -13,23 +13,22 @@ const TrackingPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [categories, setCategories] = useState([]);
-useEffect(() => {
-    const fetchCategories = async () => {
-        try {
-            const response = await axios.get(`${API_BASE_URL}/categories`); // adjust endpoint if needed
-            if (response.data.status === 'success') {
-                setCategories(response.data.data); // assuming data is an array of { id, name }
-            } else {
-                toast.error("Failed to fetch categories");
-            }
-        } catch (err) {
-            toast.error("Error fetching categories");
-        }
-    };
 
-    fetchCategories();
-}, []);
-
+    // useEffect(() => {
+    //     const fetchCategories = async () => {
+    //         try {
+    //             const response = await axios.get(`${API_BASE_URL}/categories`);
+    //             if (response.data.status === 'success') {
+    //                 setCategories(response.data.data);
+    //             } else {
+    //                 toast.error("Failed to fetch categories");
+    //             }
+    //         } catch (err) {
+    //             toast.error("Error fetching categories");
+    //         }
+    //     };
+    //     fetchCategories();
+    // }, []);
 
     useEffect(() => {
         const fetchTrackingData = async () => {
@@ -70,6 +69,12 @@ useEffect(() => {
     if (!challanData) {
         return <Alert variant="warning">No tracking data found for this challan.</Alert>;
     }
+
+    // Helper function to find the category name using the correct key 'category'
+    const getCategoryName = (categoryId) => {
+        const category = categories.find(c => c.id === categoryId);
+        return category ? category.category : 'N/A';
+    };
 
     return (
         <Container className="px-4 py-2">
@@ -113,14 +118,13 @@ useEffect(() => {
                                         <Row>
                                             <Col md={6}>
                                                 <ListGroup variant="flush">
-                                               
-<ListGroup.Item>
-    <strong>Category:</strong> {categories.find(c => c.id === vci.vci_details.category_id)?.name || 'N/A'}
-</ListGroup.Item>
                                                     <ListGroup.Item>
-                                                        <strong>Send date:</strong> {vci.vci_details.updated_at ? new Date(vci.vci_details.updated_at).toLocaleString() : 'N/A'}
+                                                        <strong>Category:</strong> {getCategoryName(vci.vci_details.category_id)}
                                                     </ListGroup.Item>
-                                                      <ListGroup.Item>
+                                                    <ListGroup.Item>
+                                                        <strong>Send date:</strong> {challanData.challan_date ? new Date(challanData.challan_date).toLocaleString() : 'N/A'}
+                                                    </ListGroup.Item>
+                                                    <ListGroup.Item>
                                                         <strong>Received date:</strong> {vci.vci_details.updated_at ? new Date(vci.vci_details.updated_at).toLocaleString() : 'N/A'}
                                                     </ListGroup.Item>
                                                 </ListGroup>

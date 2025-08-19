@@ -16,14 +16,14 @@ export default function AddNewSalePage() {
   const hasFetched = useRef(false);
   const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
-  const [batches, setBatches] = useState([]);
+  // const [batches, setBatches] = useState([]);
   const [categories, setCategories] = useState([]);
   const [serialError, setSerialError] = useState('');
   const [errors, setErrors] = useState({});
   const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
     customer_id: '',
-    batch_id: '',
+    // batch_id: '',
     category_id: '',
     quantity: '',
     from_serial: '',
@@ -43,7 +43,7 @@ export default function AddNewSalePage() {
   const newFormErrors = {};
 
   if (!formData.customer_id) newFormErrors['customer_id'] = "Customer is required";
-  if (!formData.batch_id) newFormErrors['batch_id'] = "Batch is required";
+  // if (!formData.batch_id) newFormErrors['batch_id'] = "Batch is required";
   if (!formData.category_id) newFormErrors['category_id'] = "Category is required";
   if (!formData.quantity) newFormErrors['quantity'] = "Quantity is required";
   if (!formData.shipment_name) newFormErrors['shipment_name'] = "Shipment Name is required";
@@ -79,10 +79,10 @@ export default function AddNewSalePage() {
 
 
   const handleAddClick = async () => {
-    if (!formData.batch_id || !formData.category_id) {
-      toast.error("Please select both Batch and Category first.");
-      return;
-    }
+    // if (!formData.batch_id || !formData.category_id) {
+    //   toast.error("Please select both Batch and Category first.");
+    //   return;
+    // }
 
     setShowModal(true);
     setLoadingProducts(true);
@@ -90,7 +90,7 @@ export default function AddNewSalePage() {
     try {
       const res = await axios.get(`${API_BASE_URL}/products`, {
         params: {
-          batch_id: formData.batch_id,
+          // batch_id: formData.batch_id,
           category_id: formData.category_id,
           sale_status: 'Available'
         }
@@ -113,7 +113,7 @@ export default function AddNewSalePage() {
       .then(res => {
         if (res.data?.data) {
           setCustomers(res.data.data.customers);
-          setBatches(res.data.data.batches);
+          // setBatches(res.data.data.batches);
           setCategories(res.data.data.categories);
         }
       })
@@ -133,14 +133,14 @@ export default function AddNewSalePage() {
   });
 }
 
-    if (['quantity', 'from_serial', 'batch_id', 'category_id'].includes(name)) {
-      const { quantity, from_serial, batch_id, category_id } = updated;
+    if (['quantity', 'from_serial',  'category_id'].includes(name)) {
+      const { quantity, from_serial, category_id } = updated;
 
-      if (quantity && batch_id && category_id) {
+      if (quantity  && category_id) {
         try {
           const payload = {
             quantity,
-            batch_id,
+            // batch_id,
             category_id
           };
 
@@ -332,7 +332,7 @@ export default function AddNewSalePage() {
             </Form.Group>
           </Col>
 
-          <Col md={4}>
+          {/* <Col md={4}>
             <Form.Label>Batch</Form.Label>
             <Form.Select size="sm" name="batch_id" value={formData.batch_id} onChange={handleChange} style={{ boxShadow: 'none', borderColor: '#ced4da' }}
              isInvalid={!!formErrors['batch_id']}
@@ -343,12 +343,12 @@ export default function AddNewSalePage() {
 
               ))}
 
-            </Form.Select>
+            </Form.Select> */}
             {/* {errors.batch_id && <div className="text-danger small mt-1">{errors.batch_id}</div>} */}
-            <Form.Control.Feedback type="invalid">
+            {/* <Form.Control.Feedback type="invalid">
   {formErrors['batch_id']}
-</Form.Control.Feedback>
-          </Col>
+</Form.Control.Feedback> */}
+          {/* </Col> */}
 
           <Col md={4}>
             <Form.Label>Category</Form.Label>

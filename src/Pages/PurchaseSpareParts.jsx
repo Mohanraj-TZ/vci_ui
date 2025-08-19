@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Button, Spinner, Form, Card, Offcanvas } from "react-bootstrap";
+import { Button, Spinner, Form, Card, Offcanvas, Modal } from "react-bootstrap";
 import axios from "axios";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { toast } from "react-toastify";
@@ -22,10 +22,12 @@ export default function PurchaseSparepartsPage() {
     const [loading, setLoading] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [showReturnForm, setShowReturnForm] = useState(false);
+    const [showWarranty, setShowWarranty] = useState(false);
+    const [selectedWarranty, setSelectedWarranty] = useState(null);
     const MySwal = withReactContent(Swal);
-    const [sortField, setSortField] = useState("asc");
-    const [sortDirection, setSortDirection] = useState("desc");
-    const [sparePartsRows, setSparePartsRows] = useState([{ sparepart_id: "", quantity: "" }]);
+    const [sortField, setSortField] = useState("invoice_no");
+    const [sortDirection, setSortDirection] = useState("asc");
+    const [sparePartsRows, setSparePartsRows] = useState([{ sparepart_id: "", quantity: "", warranty_months: 12 }]);
     const [invoiceDate, setInvoiceDate] = useState(() => {
         const today = new Date();
         return today.toISOString().split("T")[0];
@@ -114,20 +116,9 @@ export default function PurchaseSparepartsPage() {
             setVendors(rows);
         } catch (err) {
             console.error("Error loading vendors:", err);
+            toast.error("Failed to load vendors.");
         }
     }, []);
-
-    // const fetchBatches = useCallback(async () => {
-    //     try {
-    //         const { data } = await axios.get(`${API_BASE_URL}/batches`, {
-    //             headers: { Accept: "application/json" },
-    //         });
-    //         let rows = Array.isArray(data) ? data : data.batches ?? data.data ?? [];
-    //         setBatches(rows);
-    //     } catch (err) {
-    //         console.error("Error loading batches:", err);
-    //     }
-    // }, []);
 
     const fetchAvailableSpareparts = useCallback(async () => {
         try {
@@ -139,6 +130,7 @@ export default function PurchaseSparepartsPage() {
             setAvailableSpareparts(activeSpareparts);
         } catch (err) {
             console.error("Error loading spareparts master list:", err);
+            toast.error("Failed to load spareparts.");
         }
     }, []);
 
@@ -167,6 +159,39 @@ export default function PurchaseSparepartsPage() {
             toast.error("Failed to load returns.");
         }
     }, []);
+
+    const fetchWarrantyDetails = useCallback(async (purchaseId) => {
+    try {
+        console.log(`Fetching warranty details for purchase ID: ${purchaseId}`);
+        const response = await axios.get(`${API_BASE_URL}/sparepart-purchases/${purchaseId}`, {
+            headers: { 
+                Accept: "application/json",
+                // Add authentication header if required, e.g.:
+                // Authorization: `Bearer ${yourToken}`
+            },
+        });
+        console.log("API Response:", response.data);
+        if (response.data.success && response.data.data) {
+            return response.data.data;
+        } else {
+            console.error("API response missing success or data:", response.data);
+            toast.error("Invalid response from server.");
+            return null;
+        }
+    } catch (err) {
+        console.error("Error fetching warranty details:", {
+            message: err.message,
+            response: err.response ? {
+                status: err.response.status,
+                data: err.response.data,
+                headers: err.response.headers,
+            } : null,
+        });
+        const errorMessage = err.response?.data?.message || "Failed to load warranty details. Please check your network or server configuration.";
+        toast.error(errorMessage);
+        return null;
+    }
+}, []);
 
     const fetchAllData = useCallback(async () => {
         setLoading(true);
@@ -204,8 +229,9 @@ export default function PurchaseSparepartsPage() {
             setInvoiceSpareparts([]);
         }
     }, [formData.invoiceNo, spareparts, availableSpareparts, showReturnForm]);
+
     const handleAddRow = () => {
-        setSparePartsRows(rows => [...rows, { sparepart_id: "", quantity: "" }]);
+        setSparePartsRows(rows => [...rows, { sparepart_id: "", quantity: "", warranty_months: 12 }]);
     };
 
     const handleRemoveRow = index => {
@@ -214,6 +240,7 @@ export default function PurchaseSparepartsPage() {
             const newErrors = { ...prevErrors };
             delete newErrors[`sparepart-${index}`];
             delete newErrors[`quantity-${index}`];
+            delete newErrors[`warranty_months-${index}`];
             return newErrors;
         });
     };
@@ -248,10 +275,18 @@ export default function PurchaseSparepartsPage() {
                 }
                 if (field === "quantity") {
                     const quantity = parseInt(value, 10);
-                    if (!value || isNaN(quantity) || quantity < 0) {
-                        newErrors[`quantity-${index}`] = "Quantity must be a non-negative number.";
+                    if (!value || isNaN(quantity) || quantity < 1) {
+                        newErrors[`quantity-${index}`] = "Quantity must be a positive number.";
                     } else {
                         delete newErrors[`quantity-${index}`];
+                    }
+                }
+                if (field === "warranty_months") {
+                    const warrantyMonths = parseInt(value, 10);
+                    if (value && (isNaN(warrantyMonths) || warrantyMonths < 0)) {
+                        newErrors[`warranty_months-${index}`] = "Warranty months must be a non-negative number.";
+                    } else {
+                        delete newErrors[`warranty_months-${index}`];
                     }
                 }
                 return newErrors;
@@ -294,10 +329,10 @@ export default function PurchaseSparepartsPage() {
         if (!payload.vendor_id) {
             errors.vendor_id = "Vendor is required.";
         }
+        if (!payload.invoice_no) {
+            errors.invoiceNo = "Invoice No. is required.";
+        }
         if (isReturnForm) {
-            if (!payload.invoice_no) {
-                errors.invoiceNo = "Invoice No. is required.";
-            }
             if (!payload.return_date) {
                 errors.return_date = "Return Date is required.";
             }
@@ -332,7 +367,26 @@ export default function PurchaseSparepartsPage() {
                 });
             }
         } else {
-            // ... (rest of the validateForm function remains unchanged)
+            if (!payload.invoice_date) {
+                errors.invoice_date = "Invoice Date is required.";
+            }
+            if (items.length === 0 || items.every(item => !item.sparepart_id || !parseInt(item.quantity))) {
+                errors.items = "Please add at least one spare part with a valid quantity.";
+            } else {
+                items.forEach((item, index) => {
+                    const quantity = parseInt(item.quantity, 10);
+                    const warrantyMonths = parseInt(item.warranty_months, 10);
+                    if (!item.sparepart_id) {
+                        errors[`sparepart-${index}`] = "Spare part is required.";
+                    }
+                    if (!item.quantity || isNaN(quantity) || quantity < 1) {
+                        errors[`quantity-${index}`] = "Quantity must be a positive number.";
+                    }
+                    if (item.warranty_months && (isNaN(warrantyMonths) || warrantyMonths < 0)) {
+                        errors[`warranty_months-${index}`] = "Warranty months must be a non-negative number.";
+                    }
+                });
+            }
         }
 
         console.log("Validation errors:", errors);
@@ -343,19 +397,46 @@ export default function PurchaseSparepartsPage() {
         }
         return Object.keys(errors).length === 0;
     };
+
+    const handleShowWarranty = async (purchase) => {
+    setLoading(true);
+    try {
+        const warrantyData = await fetchWarrantyDetails(purchase.id);
+        if (warrantyData) {
+            setSelectedWarranty(warrantyData);
+            setShowWarranty(true);
+        } else {
+            setSelectedWarranty(null);
+            setShowWarranty(true); // Still show modal to indicate no data
+        }
+    } catch (err) {
+        console.error("Error in handleShowWarranty:", err);
+        toast.error("An unexpected error occurred while loading warranty details.");
+    } finally {
+        setLoading(false);
+    }
+};
+
+    const handleCloseWarranty = () => {
+        setShowWarranty(false);
+        setSelectedWarranty(null);
+    };
+
     const handleFormSubmit = async e => {
         e.preventDefault();
         const vendor_id = formData.vendor_id;
-const invoice_no = formData.invoiceNo;
+        const invoice_no = formData.invoiceNo;
         const notes = formData.notes || null;
         const invoice_date = invoiceDate;
 
         const items = sparePartsRows
             .map(row => {
                 const quantity = parseInt(row.quantity, 10);
+                const warrantyMonths = parseInt(row.warranty_months, 10);
                 return {
                     sparepart_id: row.sparepart_id,
                     quantity: isNaN(quantity) ? 0 : quantity,
+                    warranty_months: isNaN(warrantyMonths) ? 12 : warrantyMonths,
                 };
             })
             .filter(i => i.sparepart_id && i.quantity > 0);
@@ -394,7 +475,7 @@ const invoice_no = formData.invoiceNo;
                 }
             } else {
                 const resp = await axios.post(
-                    `${API_BASE_URL}/spareparts/purchase`,
+                    `${API_BASE_URL}/sparepart-purchases`,
                     payload,
                     { headers: { "Content-Type": "application/json", Accept: "application/json" } }
                 );
@@ -406,6 +487,9 @@ const invoice_no = formData.invoiceNo;
                         items,
                         created_at: data.data.created_at,
                         updated_at: data.data.updated_at,
+                        warranty_start_date: data.data.warranty_start_date,
+                        warranty_end_date: data.data.warranty_end_date,
+                        warranty_status: data.data.warranty_status,
                     };
                     if (dataTableInstance.current) {
                         dataTableInstance.current.destroy();
@@ -431,7 +515,7 @@ const invoice_no = formData.invoiceNo;
             }
             setShowForm(false);
             setEditingPurchase(null);
-            setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
+            setSparePartsRows([{ sparepart_id: "", quantity: "", warranty_months: 12 }]);
             setInvoiceDate(new Date().toISOString().split("T")[0]);
             setFormErrors({});
             setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
@@ -451,74 +535,71 @@ const invoice_no = formData.invoiceNo;
         }
     };
 
-const handleReturnFormSubmit = async e => {
-    e.preventDefault();
-    setLoading(true);
+    const handleReturnFormSubmit = async e => {
+        e.preventDefault();
+        setLoading(true);
 
-    const items = sparePartsRows
-        .map(row => ({
-            sparepart_id: row.sparepart_id,
-            quantity: parseInt(row.quantity, 10),
-        }))
-        .filter(i => i.sparepart_id && i.quantity > 0 && !isNaN(i.quantity));
+        const items = sparePartsRows
+            .map(row => ({
+                sparepart_id: row.sparepart_id,
+                quantity: parseInt(row.quantity, 10),
+            }))
+            .filter(i => i.sparepart_id && i.quantity > 0 && !isNaN(i.quantity));
 
-    const payload = {
-        vendor_id: formData.vendor_id,
-        invoice_no: formData.invoiceNo,
-        return_date: returnDate,
-        notes: formData.notes || null,
-        items,
-    };
+        const payload = {
+            vendor_id: formData.vendor_id,
+            invoice_no: formData.invoiceNo,
+            return_date: returnDate,
+            notes: formData.notes || null,
+            items,
+        };
 
-    console.log("Submitting return payload:", JSON.stringify(payload, null, 2));
+        if (!validateForm(payload, items, true)) {
+            setLoading(false);
+            toast.error("Form validation failed. Please check the errors.");
+            return;
+        }
 
-    if (!validateForm(payload, items, true)) {
-        setLoading(false);
-        toast.error("Form validation failed. Please check the errors.");
-        return;
-    }
+        try {
+            if (editingReturn && editingReturn.id) {
+                await axios.put(
+                    `${API_BASE_URL}/sparepart-returns/${editingReturn.id}`,
+                    payload,
+                    { headers: { "Content-Type": "application/json", Accept: "application/json" } }
+                );
+                toast.success("Return updated successfully!");
+                setReturns(prev => prev.map(r => (r.id === editingReturn.id ? { ...payload, id: editingReturn.id } : r)));
+            } else {
+                const response = await axios.post(
+                    `${API_BASE_URL}/sparepart-returns`,
+                    payload,
+                    { headers: { "Content-Type": "application/json", Accept: "application/json" } }
+                );
+                toast.success("Return added successfully!");
+                if (response.data?.data?.id) {
+                    setReturns(prev => [...prev, { ...payload, id: response.data.data.id }]);
+                }
+            }
 
-    try {
-        if (editingReturn && editingReturn.id) {
-            await axios.put(
-                `${API_BASE_URL}/sparepart-returns/${editingReturn.id}`,
-                payload,
-                { headers: { "Content-Type": "application/json", Accept: "application/json" } }
-            );
-            toast.success("Return updated successfully!");
-            // Optimistically update state
-            setReturns(prev => prev.map(r => (r.id === editingReturn.id ? { ...payload, id: editingReturn.id } : r)));
-        } else {
-            const response = await axios.post(
-                `${API_BASE_URL}/sparepart-returns`,
-                payload,
-                { headers: { "Content-Type": "application/json", Accept: "application/json" } }
-            );
-            toast.success("Return added successfully!");
-            // Optimistically update state
-            if (response.data?.data?.id) {
-                setReturns(prev => [...prev, { ...payload, id: response.data.data.id }]);
-            }
-        }
+            setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
+            setSparePartsRows([{ sparepart_id: "", quantity: "", warranty_months: 12 }]);
+            setEditingReturn(null);
+            setShowReturnForm(false);
+            setReturnDate(new Date().toISOString().split("T")[0]);
+            setFormErrors({});
+        } catch (error) {
+            console.error("Error saving return:", error);
+            const errorMessage =
+                error.response?.data?.message ||
+                error.message ||
+                "Failed to save return. Please try again.";
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        // Reset form after successful operation
-        setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
-        setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
-        setEditingReturn(null);
-        setShowReturnForm(false);
-        setReturnDate(new Date().toISOString().split("T")[0]);
-        setFormErrors({});
-    } catch (error) {
-        console.error("Error saving return:", error);
-        const errorMessage =
-            error.response?.data?.message ||
-            error.message ||
-            "Failed to save return. Please try again.";
-        toast.error(errorMessage);
-    } finally {
-        setLoading(false);
-    }
-};    const handleDelete = async id => {
+    const handleDelete = async id => {
         const result = await MySwal.fire({
             title: "Are you sure?",
             text: "Do you really want to delete this purchase?",
@@ -575,8 +656,9 @@ const handleReturnFormSubmit = async e => {
                     ? purchase.items.map(item => ({
                         sparepart_id: String(item.sparepart_id),
                         quantity: String(item.quantity),
+                        warranty_months: item.warranty_months || 12,
                     }))
-                    : [{ sparepart_id: "", quantity: "" }]
+                    : [{ sparepart_id: "", quantity: "", warranty_months: 12 }]
             );
             setInvoiceDate(purchase.invoice_date);
             setFormData({
@@ -585,7 +667,7 @@ const handleReturnFormSubmit = async e => {
                 notes: purchase.notes || "",
             });
         } else {
-            setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
+            setSparePartsRows([{ sparepart_id: "", quantity: "", warranty_months: 12 }]);
             setInvoiceDate(new Date().toISOString().split("T")[0]);
             setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
         }
@@ -596,6 +678,9 @@ const handleReturnFormSubmit = async e => {
     const handleShowReturnForm = (purchase = null) => {
         setEditingReturn(null);
         setFormErrors({});
+        setSparePartsRows([{ sparepart_id: "", quantity: "", warranty_months: 12 }]);
+        setReturnDate(new Date().toISOString().split("T")[0]);
+        setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
         if (purchase) {
             const sparepartOptions = purchase.items
                 ? purchase.items
@@ -603,17 +688,12 @@ const handleReturnFormSubmit = async e => {
                     .filter(Boolean)
                 : [];
             setInvoiceSpareparts(sparepartOptions);
-            setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
-            setReturnDate(new Date().toISOString().split("T")[0]);
             setFormData({
                 vendor_id: String(purchase.vendor_id) || "",
                 invoiceNo: String(purchase.invoice_no) || "",
                 notes: "",
             });
         } else {
-            setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
-            setReturnDate(new Date().toISOString().split("T")[0]);
-            setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
             setInvoiceSpareparts([]);
         }
         setShowReturnForm(true);
@@ -623,6 +703,11 @@ const handleReturnFormSubmit = async e => {
     const getVendorNameById = id => {
         const vendor = vendors.find(v => String(v.id) === String(id));
         return vendor ? `${vendor.first_name ?? ""} ${vendor.last_name ?? ""}`.trim() : `ID: ${id}`;
+    };
+
+    const getSparepartNameById = id => {
+        const sparepart = availableSpareparts.find(sp => String(sp.id) === String(id));
+        return sparepart ? sparepart.name : `ID: ${id}`;
     };
 
     const handleSort = field => {
@@ -657,7 +742,7 @@ const handleReturnFormSubmit = async e => {
     const paginatedSpareparts = sortedSpareparts.slice((page - 1) * perPage, page * perPage);
 
     return (
-        <div className="px-4 " style={{ fontSize: "0.75rem" }}>
+        <div className="px-4" style={{ fontSize: "0.75rem" }}>
             <Breadcrumb title="Purchase Spare Parts" />
             <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
                 <div className="row mb-2">
@@ -715,7 +800,7 @@ const handleReturnFormSubmit = async e => {
                     </div>
                 </div>
                 <div className="table-responsive">
-                    <table ref={tableRef} className=" custom-table table align-middle mb-0">
+                    <table ref={tableRef} className="custom-table table align-middle mb-0">
                         <thead style={{ backgroundColor: "#2E3A59", color: "white" }}>
                             <tr>
                                 <th
@@ -776,7 +861,7 @@ const handleReturnFormSubmit = async e => {
                                         <td>
                                             <div className="d-flex align-items-center gap-1">
                                                 <Button
-                                                    variant=""
+                                                    variant="outline-primary"
                                                     size="sm"
                                                     className="p-1"
                                                     onClick={() => handleShowForm(purchase)}
@@ -784,9 +869,8 @@ const handleReturnFormSubmit = async e => {
                                                 >
                                                     <i className="bi bi-pencil-square"></i>
                                                 </Button>
-
                                                 <Button
-                                                    variant="outline-primary"
+                                                    variant="outline-danger"
                                                     size="sm"
                                                     className="p-1"
                                                     onClick={() => handleDelete(purchase.id)}
@@ -798,7 +882,6 @@ const handleReturnFormSubmit = async e => {
                                                 >
                                                     <i className="bi bi-trash"></i>
                                                 </Button>
-
                                                 <Button
                                                     variant="outline-warning"
                                                     size="sm"
@@ -812,8 +895,20 @@ const handleReturnFormSubmit = async e => {
                                                 >
                                                     <i className="bi bi-arrow-return-left"></i>
                                                 </Button>
+                                                <Button
+                                                    variant="outline-info"
+                                                    size="sm"
+                                                    className="p-1"
+                                                    onClick={() => handleShowWarranty(purchase)}
+                                                    style={{
+                                                        borderColor: "#2E3A59",
+                                                        color: "#2E3A59",
+                                                        backgroundColor: "transparent",
+                                                    }}
+                                                >
+                                                    <i className="bi bi-shield-check"></i>
+                                                </Button>
                                             </div>
-
                                         </td>
                                     </tr>
                                 ))
@@ -838,10 +933,10 @@ const handleReturnFormSubmit = async e => {
                 placement="end"
                 style={{
                     width: "600px",
-
                     fontFamily: "Product Sans, sans-serif",
                     fontSize: "0.875rem",
-                }} className="custom-offcanvas"
+                }}
+                className="custom-offcanvas"
             >
                 <Offcanvas.Header className="border-bottom">
                     <Offcanvas.Title className="fw-semibold">
@@ -856,7 +951,7 @@ const handleReturnFormSubmit = async e => {
                                 setShowForm(false);
                                 setEditingPurchase(null);
                                 setFormErrors({});
-                                setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
+                                setSparePartsRows([{ sparepart_id: "", quantity: "", warranty_months: 12 }]);
                                 setInvoiceDate(new Date().toISOString().split("T")[0]);
                                 setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
                             }}
@@ -867,13 +962,10 @@ const handleReturnFormSubmit = async e => {
                         </Button>
                     </div>
                 </Offcanvas.Header>
-
-
                 <Offcanvas.Body
                     style={{ maxHeight: "calc(100vh - 150px)", overflowY: "auto" }}
                 >
                     <Form onSubmit={handleFormSubmit} noValidate>
-                        {/* Vendor */}
                         <div className="row mb-3">
                             <div className="col-6">
                                 <Form.Label
@@ -984,10 +1076,7 @@ const handleReturnFormSubmit = async e => {
                                     </div>
                                 )}
                             </div>
-
                         </div>
-
-                        {/* Invoice No & Date */}
                         <div className="row mb-3">
                             <div className="col-6">
                                 <Form.Label
@@ -1013,11 +1102,7 @@ const handleReturnFormSubmit = async e => {
                                     {formErrors.invoiceNo}
                                 </Form.Control.Feedback>
                             </div>
-
-
                         </div>
-
-                        {/* Notes */}
                         <div className="mb-3">
                             <Form.Label
                                 className="fw-semibold mb-1"
@@ -1035,8 +1120,6 @@ const handleReturnFormSubmit = async e => {
                                 style={getBlueBorderStyles(formData.notes, false)}
                             ></Form.Control>
                         </div>
-
-                        {/* Spare Parts */}
                         <div className="mb-3">
                             <div className="d-flex justify-content-between align-items-center mb-2">
                                 <h6 className="fw-semibold mb-0">
@@ -1068,7 +1151,6 @@ const handleReturnFormSubmit = async e => {
                                     + Add Row
                                 </button>
                             </div>
-
                             <div
                                 style={{
                                     border: "1px solid #D3DBD5",
@@ -1106,6 +1188,18 @@ const handleReturnFormSubmit = async e => {
                                                 }}
                                             >
                                                 Quantity
+                                            </th>
+                                            <th
+                                                style={{
+                                                    textAlign: "left",
+                                                    padding: "12px",
+                                                    backgroundColor: "#F3F4F6",
+                                                    borderBottom: "1px solid #D3DBD5",
+                                                    fontWeight: 600,
+                                                    fontSize: "15px"
+                                                }}
+                                            >
+                                                Warranty (Months)
                                             </th>
                                             <th
                                                 style={{
@@ -1209,6 +1303,39 @@ const handleReturnFormSubmit = async e => {
                                                             {formErrors[`quantity-${index}`]}
                                                         </Form.Control.Feedback>
                                                     </td>
+                                                    <td>
+                                                        <Form.Control
+                                                            type="number"
+                                                            name={`warranty_months-${index}`}
+                                                            placeholder="Enter Warranty Months"
+                                                            min="0"
+                                                            value={row.warranty_months}
+                                                            onChange={(e) =>
+                                                                handleRowChange(
+                                                                    index,
+                                                                    "warranty_months",
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            isInvalid={
+                                                                !!formErrors[`warranty_months-${index}`]
+                                                            }
+                                                            style={{
+                                                                fontSize: "14px",
+                                                                border: "none",
+                                                                outline: "none",
+                                                                boxShadow: "none",
+                                                                backgroundColor: "transparent",
+                                                                height: "38px"
+                                                            }}
+                                                        />
+                                                        <Form.Control.Feedback
+                                                            type="invalid"
+                                                            className="d-block mt-0"
+                                                        >
+                                                            {formErrors[`warranty_months-${index}`]}
+                                                        </Form.Control.Feedback>
+                                                    </td>
                                                     <td className="text-center align-middle">
                                                         <Button
                                                             variant="light"
@@ -1237,7 +1364,7 @@ const handleReturnFormSubmit = async e => {
                                         ) : (
                                             <tr>
                                                 <td
-                                                    colSpan="3"
+                                                    colSpan="4"
                                                     className="text-center text-muted py-3"
                                                 >
                                                     No spare parts added yet.
@@ -1253,8 +1380,6 @@ const handleReturnFormSubmit = async e => {
                                 </div>
                             )}
                         </div>
-
-                        {/* Save Button */}
                         <div className="d-flex justify-content-end gap-2 mt-3">
                             <Button className="btn-common btn-cancel" variant="light" onClick={() => setShowForm(false)}>
                                 Cancel
@@ -1278,7 +1403,7 @@ const handleReturnFormSubmit = async e => {
                     setShowReturnForm(false);
                     setEditingReturn(null);
                     setFormErrors({});
-                    setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
+                    setSparePartsRows([{ sparepart_id: "", quantity: "", warranty_months: 12 }]);
                     setReturnDate(new Date().toISOString().split("T")[0]);
                     setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
                 }}
@@ -1298,21 +1423,19 @@ const handleReturnFormSubmit = async e => {
             >
                 <Offcanvas.Header className="border-bottom">
                     <Offcanvas.Title className="fw-semibold">
-                        {editingPurchase
-                            ? "Edit Spare Parts Returns"
-                            : "Spare Parts Returns"}
+                        {editingReturn ? "Edit Spare Parts Returns" : "Spare Parts Returns"}
                     </Offcanvas.Title>
                     <div className="ms-auto">
                         <Button
                             variant="outline-secondary"
-                                onClick={() => {
-                                    setShowReturnForm(false);
-                                    setEditingReturn(null);
-                                    setFormErrors({});
-                                    // setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
-                                    // setReturnDate(new Date().toISOString().split("T")[0]);
-                                    // setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
-                                }}
+                            onClick={() => {
+                                setShowReturnForm(false);
+                                setEditingReturn(null);
+                                setFormErrors({});
+                                setSparePartsRows([{ sparepart_id: "", quantity: "", warranty_months: 12 }]);
+                                setReturnDate(new Date().toISOString().split("T")[0]);
+                                setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
+                            }}
                             className="rounded-circle border-0 d-flex align-items-center justify-content-center"
                             style={{ width: "32px", height: "32px" }}
                         >
@@ -1320,10 +1443,8 @@ const handleReturnFormSubmit = async e => {
                         </Button>
                     </div>
                 </Offcanvas.Header>
-
                 <Offcanvas.Body className="px-3 pt-2 pb-2">
                     <Form onSubmit={handleReturnFormSubmit} noValidate>
-                        {/* Vendor & Invoice */}
                         <div className="row mb-3">
                             <div className="col-6">
                                 <Form.Label className="fw-semibold mb-1" style={{ color: "#393C3AE5" }}>
@@ -1349,7 +1470,6 @@ const handleReturnFormSubmit = async e => {
                                     {formErrors.vendor_id}
                                 </Form.Control.Feedback>
                             </div>
-
                             <div className="col-6">
                                 <Form.Label className="fw-semibold mb-1" style={{ color: "#393C3AE5" }}>
                                     Purchase Invoice No. <span className="text-danger">*</span>
@@ -1375,8 +1495,6 @@ const handleReturnFormSubmit = async e => {
                                 </Form.Control.Feedback>
                             </div>
                         </div>
-
-                        {/* Return Date */}
                         <div className="row mb-3">
                             <div className="col-6 position-relative">
                                 <Form.Label className="fw-semibold mb-1" style={{ color: "#393C3AE5" }}>
@@ -1430,8 +1548,6 @@ const handleReturnFormSubmit = async e => {
                                 )}
                             </div>
                         </div>
-
-                        {/* Notes */}
                         <div className="mb-3">
                             <Form.Label className="fw-semibold mb-1" style={{ color: "#393C3AE5" }}>
                                 Notes
@@ -1446,8 +1562,6 @@ const handleReturnFormSubmit = async e => {
                                 style={getBlueBorderStyles(formData.notes, false)}
                             ></Form.Control>
                         </div>
-
-                        {/* Spare Parts Table */}
                         <div className="mb-3">
                             <div className="d-flex justify-content-between align-items-center mb-2">
                                 <h6 className="fw-semibold mb-0">
@@ -1456,7 +1570,6 @@ const handleReturnFormSubmit = async e => {
                                 <button
                                     type="button"
                                     onClick={handleAddRow}
-                                    className="add-row-btn"
                                     disabled={sparePartsRows.length >= invoiceSpareparts.length}
                                     style={{
                                         border: "1px solid #2FA64F",
@@ -1465,7 +1578,6 @@ const handleReturnFormSubmit = async e => {
                                         padding: "6px 12px",
                                         fontSize: "14px",
                                         borderRadius: "6px",
-                                        // opacity: sparePartsRows.length >= invoiceSpareparts.length ? 0.6 : 1,
                                         cursor: sparePartsRows.length >= invoiceSpareparts.length ? "not-allowed" : "pointer",
                                         outline: "none",
                                         boxShadow: "none",
@@ -1474,15 +1586,14 @@ const handleReturnFormSubmit = async e => {
                                     + Add Row
                                 </button>
                             </div>
-
                             <div style={{ border: "1px solid #D3DBD5", borderRadius: "8px", overflow: "hidden" }}>
                                 <div style={{ maxHeight: "200px", overflowY: "auto" }}>
                                     <table className="custom-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}>
                                         <thead>
                                             <tr>
-                                                <th style={{ textAlign: "left", padding: "12px", backgroundColor: "#2E3A59", borderBottom: "1px solid #D3DBD5", fontWeight: 600, fontSize: "14px" }}>Sparepart Name</th>
-                                                <th style={{ textAlign: "left", padding: "12px", backgroundColor: "#2E3A59", borderBottom: "1px solid #D3DBD5", fontWeight: 600, fontSize: "14px" }}>Quantity</th>
-                                                <th style={{ width: "40px", padding: "12px", backgroundColor: "#2E3A59", borderBottom: "1px solid #D3DBD5" }}></th>
+                                                <th style={{ textAlign: "left", padding: "12px", backgroundColor: "#2E3A59", color: "white", borderBottom: "1px solid #D3DBD5", fontWeight: 600, fontSize: "14px" }}>Sparepart Name</th>
+                                                <th style={{ textAlign: "left", padding: "12px", backgroundColor: "#2E3A59", color: "white", borderBottom: "1px solid #D3DBD5", fontWeight: 600, fontSize: "14px" }}>Quantity</th>
+                                                <th style={{ width: "40px", padding: "12px", backgroundColor: "#2E3A59", color: "white", borderBottom: "1px solid #D3DBD5" }}></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1527,7 +1638,6 @@ const handleReturnFormSubmit = async e => {
                                                                     {formErrors[`sparepart-${index}`]}
                                                                 </Form.Control.Feedback>
                                                             </td>
-
                                                             <td style={{ padding: "12px" }}>
                                                                 <Form.Control
                                                                     type="number"
@@ -1550,7 +1660,6 @@ const handleReturnFormSubmit = async e => {
                                                                     {formErrors[`quantity-${index}`]}
                                                                 </Form.Control.Feedback>
                                                             </td>
-
                                                             <td className="text-center align-middle" style={{ padding: "5px" }}>
                                                                 <Button
                                                                     variant="link"
@@ -1590,16 +1699,14 @@ const handleReturnFormSubmit = async e => {
                                 )}
                             </div>
                         </div>
-
-                        {/* Form Actions */}
                         <div className="d-flex justify-content-end mt-4">
                             <Button
-                                variant=""
+                                variant="secondary"
                                 onClick={() => {
                                     setShowReturnForm(false);
                                     setEditingReturn(null);
                                     setFormErrors({});
-                                    setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
+                                    setSparePartsRows([{ sparepart_id: "", quantity: "", warranty_months: 12 }]);
                                     setReturnDate(new Date().toISOString().split("T")[0]);
                                     setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
                                 }}
@@ -1607,7 +1714,11 @@ const handleReturnFormSubmit = async e => {
                             >
                                 Cancel
                             </Button>
-                            <Button variant="" type="submit"  className="btn-common btn-save">
+                            <Button
+                                variant="success"
+                                type="submit"
+                                className="btn-common btn-save"
+                            >
                                 {editingReturn ? "Update" : "Save"}
                             </Button>
                         </div>
@@ -1615,17 +1726,94 @@ const handleReturnFormSubmit = async e => {
                 </Offcanvas.Body>
             </Offcanvas>
 
+            {/* Warranty Details Modal */}
+            <Modal show={showWarranty} onHide={handleCloseWarranty} centered>
+        <Modal.Header closeButton>
+                <Modal.Title>Warranty Details</Modal.Title>
+            </Modal.Header>
+        <Modal.Body>
+            {loading ? (
+                <div className="text-center">
+                    <Spinner animation="border" />
+                    <p>Loading warranty details...</p>
+                </div>
+            ) : selectedWarranty ? (
+                <div>
+                    <p><strong>Invoice No:</strong> {selectedWarranty.invoice_no || "N/A"}</p>
+                    <p><strong>Vendor:</strong> {getVendorNameById(selectedWarranty.vendor_id) || "N/A"}</p>
+                    <p><strong>Purchase Warranty Start:</strong> {selectedWarranty.warranty_start_date ? new Date(selectedWarranty.warranty_start_date).toLocaleDateString("en-GB") : "N/A"}</p>
+                    <p><strong>Purchase Warranty End:</strong> {selectedWarranty.warranty_end_date ? new Date(selectedWarranty.warranty_end_date).toLocaleDateString("en-GB") : "N/A"}</p>
+                    <p><strong>Purchase Warranty Status:</strong> 
+                        {selectedWarranty.warranty_status ? (
+                            <span className={`badge ${selectedWarranty.warranty_status === "active" ? "bg-success" : "bg-danger"}`}>
+                                {selectedWarranty.warranty_status.charAt(0).toUpperCase() + selectedWarranty.warranty_status.slice(1)}
+                            </span>
+                        ) : "N/A"}
+                    </p>
+                    <hr />
+                    <h6>Item Warranties</h6>
+                    {selectedWarranty.items && selectedWarranty.items.length > 0 ? (
+                        <table className="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Sparepart Name</th>
+                                    <th>Quantity</th>
+                                    <th>Warranty Start</th>
+                                    <th>Warranty End</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {selectedWarranty.items.map(item => (
+                                    <tr key={item.sparepart_id}>
+                                        <td>{getSparepartNameById(item.sparepart_id) || "Unknown Sparepart"}</td>
+                                        <td>{item.quantity || "N/A"}</td>
+                                        <td>{item.warranty_start_date ? new Date(item.warranty_start_date).toLocaleDateString("en-GB") : "N/A"}</td>
+                                        <td>{item.warranty_end_date ? new Date(item.warranty_end_date).toLocaleDateString("en-GB") : "N/A"}</td>
+                                        <td>
+                                            {item.warranty_status ? (
+                                                <span className={`badge ${item.warranty_status === "active" ? "bg-success" : "bg-danger"}`}>
+                                                    {item.warranty_status.charAt(0).toUpperCase() + item.warranty_status.slice(1)}
+                                                </span>
+                                            ) : "N/A"}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <p>No item warranty details available.</p>
+                    )}
+                </div>
+            ) : (
+                <p>No warranty details available. Please try again or contact support.</p>
+            )}
+        </Modal.Body>
+        <Modal.Footer>
+            <Button variant="secondary" onClick={handleCloseWarranty}>
+                Close
+            </Button>
+        </Modal.Footer>
+    </Modal>
+
             <style>
                 {`
-                        .add-row-btn {
-                            background-color: #278C580F;
-                            color: #278C58;
-                            font-size: 14px;
-                            padding: 6px 12px;
-                            box-shadow: none;
-                            cursor: pointer;
-                        }
-                    `}
+                    .add-row-btn {
+                        background-color: #278C580F;
+                        color: #278C58;
+                        font-size: 14px;
+                        padding: 6px 12px;
+                        box-shadow: none;
+                        cursor: pointer;
+                    }
+                    .custom-table th, .custom-table td {
+                        font-size: 14px;
+                    }
+                    .badge {
+                        font-size: 12px;
+                        padding: 5px 10px;
+                    }
+                `}
             </style>
         </div>
     );

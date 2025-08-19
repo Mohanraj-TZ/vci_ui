@@ -168,7 +168,7 @@ export default function SalesListPage() {
                   { label: "Invoice No", field: "invoice_no" },
                   { label: "Shipment", field: "shipment_date" },
                   { label: "Delivery", field: "delivery_date" },
-                  { label: "Batch", field: "batch_name" },
+                  // { label: "Batch", field: "batch_name" },
                   { label: "Category", field: "category_name" },
                   { label: "Qty", field: "quantity" },
                 ].map(({ label, field }) => (
@@ -209,7 +209,7 @@ export default function SalesListPage() {
                     <td>{item.invoice_no}</td>
                     <td>{item.shipment_date}</td>
                     <td>{item.delivery_date}</td>
-                    <td>{item.batch_name}</td>
+                    {/* <td>{item.batch_name}</td> */}
                     <td>{item.category_name}</td>
                     <td>{item.quantity}</td>
                     <td className="text-center" style={{ width: "130px" }}>

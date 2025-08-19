@@ -41,7 +41,7 @@ const [selectedIds, setSelectedIds] = useState([]);
             <table className="table table-bordered">
               <thead className="table-light">
                 <tr>
-                  <th>Batch</th>
+                  {/* <th>Batch</th> */}
                   <th>Category</th>
                   <th>Serial No</th>
                   <th>Test</th>
@@ -52,7 +52,7 @@ const [selectedIds, setSelectedIds] = useState([]);
               <tbody>
                 {filteredProducts.map((prod) => (
                   <tr key={prod.id}>
-                    <td>{prod.batch?.batch || "-"}</td>
+                    {/* <td>{prod.batch?.batch || "-"}</td> */}
                     <td>{prod.category?.category || "-"}</td>
                     <td>{prod.serial_no}</td>
                     <td>{prod.test}</td>

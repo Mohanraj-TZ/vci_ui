@@ -11,48 +11,45 @@ import Pagination from "./Components/Pagination";
 import Search from "./Components/Search";
 import ActionButtons from "./Components/ActionButtons";
 
-
 export default function PurchaseListPage() {
   const navigate = useNavigate();
-
   const [purchaseData, setPurchaseData] = useState([]);
   const [loading, setLoading] = useState(false);
-
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [search, setSearch] = useState("");
 
-  const [sortColumn, setSortColumn] = useState("asc");
+  // Warranty modal state
+  const [showWarrantyModal, setShowWarrantyModal] = useState(false);
+  const [warrantyData, setWarrantyData] = useState(null);
+
+  const [sortColumn, setSortColumn] = useState("vendor");
   const [sortDirection, setSortDirection] = useState("asc");
 
   const fetchPurchases = () => {
     setLoading(true);
     axios
       .get(`${API_BASE_URL}/purchase`)
-      .then((res) => {
-        setPurchaseData(Array.isArray(res.data) ? res.data : []);
-      })
-      .catch((err) => {
-        console.error("Error fetching purchase list:", err);
-        toast.error("Failed to fetch purchase list.");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .then((res) => setPurchaseData(Array.isArray(res.data) ? res.data : []))
+      .catch(() => toast.error("Failed to fetch purchase list."))
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    fetchPurchases();
-  }, []);
+  useEffect(() => { fetchPurchases(); }, []);
 
-  const handleEdit = (item) => {
-    navigate(`/purchase/${item.id}/edit`);
+  const handleWarrantyDetails = async (purchaseId) => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/pcb-warranty/${purchaseId}`);
+      setWarrantyData(res.data);
+      setShowWarrantyModal(true);
+    } catch {
+      toast.error("Failed to fetch warranty details");
+    }
   };
 
-  const handleReturn = (invoice_no) => {
+  const handleEdit = (item) => navigate(`/purchase/${item.id}/edit`);
+  const handleReturn = (invoice_no) =>
     navigate(`/pcb-purchase-return/add?invoice=${encodeURIComponent(invoice_no)}`);
-  };
-
 
   const handleDelete = (purchaseId) => {
     Swal.fire({
@@ -63,40 +60,25 @@ export default function PurchaseListPage() {
       confirmButtonColor: "#d33",
       cancelButtonColor: "#2FA64F",
       confirmButtonText: "Yes, delete it!",
-      customClass: {
-      popup: "custom-compact" 
-    }
+      customClass: { popup: "custom-compact" },
     }).then((result) => {
       if (result.isConfirmed) {
         axios
           .delete(`${API_BASE_URL}/purchase/${purchaseId}`)
-          .then((res) => {
-            toast.success(res.data.message || "Purchase deleted successfully");
-            fetchPurchases();
-          })
-          .catch((err) => {
-            toast.error(err.response?.data?.message || "Failed to delete purchase");
-          });
+          .then((res) => { toast.success(res.data.message || "Purchase deleted successfully"); fetchPurchases(); })
+          .catch(() => toast.error("Failed to delete purchase"));
       }
     });
   };
 
   const handleGenerateInvoice = (purchaseId) => {
     const pdfWindow = window.open(`${API_BASE_URL}/pcb-purchase-invoice/${purchaseId}`, "_blank");
-    if (pdfWindow) {
-      toast.success("Invoice generated successfully!");
-    } else {
-      toast.error("Failed to generate invoice.");
-    }
+    pdfWindow ? toast.success("Invoice generated successfully!") : toast.error("Failed to generate invoice.");
   };
 
   const handleSort = (column) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
+    if (sortColumn === column) setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    else { setSortColumn(column); setSortDirection("asc"); }
   };
 
   const filteredData = purchaseData
@@ -105,44 +87,31 @@ export default function PurchaseListPage() {
       return (
         item.vendor?.toLowerCase().includes(keyword) ||
         item.invoice_no?.toLowerCase().includes(keyword) ||
-        item.batch?.toLowerCase().includes(keyword) ||
         item.category?.toLowerCase().includes(keyword) ||
-        item.branch?.toLowerCase().includes(keyword) ||
-        item.invoice_date?.toLowerCase().includes(keyword) ||
         String(item.quantity).toLowerCase().includes(keyword)
       );
     })
     .sort((a, b) => {
       const aValue = a[sortColumn];
       const bValue = b[sortColumn];
-
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
-      } else {
-        return sortDirection === "asc"
+      return typeof aValue === "number"
+        ? (sortDirection === "asc" ? aValue - bValue : bValue - aValue)
+        : sortDirection === "asc"
           ? String(aValue).localeCompare(String(bValue))
           : String(bValue).localeCompare(String(aValue));
-      }
     });
 
   const paginatedData = filteredData.slice((page - 1) * perPage, page * perPage);
 
   const renderHeader = (label, columnKey) => (
-    <th
-      onClick={() => handleSort(columnKey)}
-      style={{
-        cursor: "pointer",
-        userSelect: "none",
-        backgroundColor: "#2E3A59",
-        color: "white",
-      }}
-    >
+    <th onClick={() => handleSort(columnKey)}
+        style={{ cursor: "pointer", userSelect: "none", backgroundColor: "#2E3A59", color: "white" }}>
       {label} {sortColumn === columnKey && (sortDirection === "asc" ? "▲" : "▼")}
     </th>
   );
 
   return (
-    <div className="px-4 " style={{ fontSize: "0.75rem" }}>
+    <div className="px-4" style={{ fontSize: "0.75rem" }}>
       <Breadcrumb title="Purchase Order" />
 
       <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
@@ -153,107 +122,49 @@ export default function PurchaseListPage() {
               size="sm"
               style={{ width: "100px" }}
               value={perPage}
-              onChange={(e) => {
-                setPerPage(Number(e.target.value));
-                setPage(1);
-              }}
+              onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
             >
-              {[5, 10, 25, 50].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
+              {[5, 10, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
             </Form.Select>
           </div>
-          <div className="col-md-6 text-md-end" style={{ fontSize: '0.8rem' }}>
-            <div className="mt-2 d-inline-block mb-2" style={{ fontSize: '0.8rem' }}>
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                className="me-2"
-                onClick={fetchPurchases}
-              >
-                <i className="bi bi-arrow-clockwise"></i>
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => navigate("/purchase/add")}
-                  style={{
-                                    backgroundColor: '#2FA64F',
-                                    borderColor: '#2FA64F',
-                                    color: '#fff',
-                                    padding: '0.25rem 0.5rem',
-                                    fontSize: '0.8rem',
-                                    minWidth: '90px',
-                                    height: '28px',
-                                }}
-              >
-                <i className="bi bi-plus-lg me-1"></i> Add Purchase
-              </Button>
-            </div>
-            <Search
-              search={search}
-              setSearch={setSearch}
-              perPage={perPage}
-              setPerPage={setPerPage}
-              setPage={setPage}
-            />
+          <div className="col-md-6 text-md-end">
+            <Button variant="outline-secondary" size="sm" className="me-2" onClick={fetchPurchases}>
+              <i className="bi bi-arrow-clockwise"></i>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => navigate("/purchase/add")}
+              style={{ backgroundColor: '#2FA64F', borderColor: '#2FA64F', color: '#fff', padding: '0.25rem 0.5rem', fontSize: '0.8rem', minWidth: '90px', height: '28px' }}
+            >
+              <i className="bi bi-plus-lg me-1"></i> Add Purchase
+            </Button>
+            <Search search={search} setSearch={setSearch} perPage={perPage} setPerPage={setPerPage} setPage={setPage} />
           </div>
         </div>
 
         <div className="table-responsive">
-          <table className="table  table-sm  custom-table align-middle mb-0">
-            <thead style={{  backgroundColor: "#2E3A59",
-                                color: "white",
-                                fontSize: "0.82rem",
-                                height: "40px",
-                                verticalAlign: "middle",  }}>
+          <table className="table table-sm custom-table align-middle mb-0">
+            <thead style={{ backgroundColor: "#2E3A59", color: "white", fontSize: "0.82rem", height: "40px", verticalAlign: "middle" }}>
               <tr>
-                <th
-                  style={{
-                    width: "60px",
-                    textAlign: "center",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
-                    
-                  }}
-                >
-                  S.No
-                </th>
+                <th style={{ width: "60px", textAlign: "center" }}>S.No</th>
                 {renderHeader("Vendor", "vendor")}
                 {renderHeader("Invoice No", "invoice_no")}
                 {renderHeader("Invoice Date", "invoice_date")}
-                {/* {renderHeader("Batch", "batch")} */}
                 {renderHeader("Category", "category")}
                 {renderHeader("Quantity", "quantity")}
-                <th
-                  style={{
-                    width: "140px",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
-                  }}
-                >
-                  Actions
-                </th>
+                {renderHeader("Status", "status")}
+                {renderHeader("Warranty Status", "warranty_status")}
+                {renderHeader("Expired Service Cost", "expired_service_cost")}
+                <th style={{ width: "140px" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="8" className="text-center py-4">
-                    <Spinner animation="border" />
-                  </td>
-                </tr>
+                <tr><td colSpan="9" className="text-center py-4"><Spinner animation="border" /></td></tr>
               ) : paginatedData.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="text-center py-4 text-muted">
-                    <img
-                      src="/empty-box.png"
-                      alt="No data"
-                      style={{ width: "80px", height: "100px", opacity: 0.6 }}
-                    />
-                  </td>
-                </tr>
+                <tr><td colSpan="9" className="text-center py-4 text-muted">
+                  <img src="/empty-box.png" alt="No data" style={{ width: "80px", height: "100px", opacity: 0.6 }} />
+                </td></tr>
               ) : (
                 paginatedData.map((item, index) => (
                   <tr key={item.id}>
@@ -261,18 +172,19 @@ export default function PurchaseListPage() {
                     <td>{item.vendor}</td>
                     <td>{item.invoice_no}</td>
                     <td>{item.invoice_date}</td>
-                    {/* <td>{item.batch}</td> */}
                     <td>{item.category}</td>
                     <td>{item.quantity}</td>
+                    <td>{item.status}</td>
+                    <td>{item.warranty_status}</td>
+                    <td>{item.expired_service_cost}</td>
                     <td className="text-center" style={{ width: "130px" }}>
-                      <div className="d-flex justify-content-center gap-1">
-                        <ActionButtons
-                          onPdf={() => handleGenerateInvoice(item.id)}
-                          onEdit={() => handleEdit(item)}
-                          onDelete={() => handleDelete(item.id)}
-                          onReturn={() => handleReturn(item.invoice_no)}
-                        />
-                      </div>
+                      <ActionButtons
+                        onPdf={() => handleGenerateInvoice(item.id)}
+                        onEdit={() => handleEdit(item)}
+                        onDelete={() => handleDelete(item.id)}
+                        onReturn={() => handleReturn(item.invoice_no)}
+                        onWarranty={() => handleWarrantyDetails(item.id)}
+                      />
                     </td>
                   </tr>
                 ))
@@ -281,13 +193,53 @@ export default function PurchaseListPage() {
           </table>
         </div>
 
-        <Pagination
-          page={page}
-          setPage={setPage}
-          perPage={perPage}
-          totalEntries={filteredData.length}
-        />
+        <Pagination page={page} setPage={setPage} perPage={perPage} totalEntries={filteredData.length} />
       </Card>
+
+      {/* Warranty Modal */}
+      {showWarrantyModal && (
+        <div className="modal show d-block" tabIndex="-1">
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Warranty Details</h5>
+                <button type="button" className="btn-close" onClick={() => setShowWarrantyModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                {warrantyData?.items?.length ? (
+                  <table className="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Category</th>
+                        <th>From Serial</th>
+                        <th>To Serial</th>
+                        <th>Warranty Start</th>
+                        <th>Warranty End</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {warrantyData.items.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>{item.category}</td>
+                          <td>{item.from_serial}</td>
+                          <td>{item.to_serial}</td>
+                          <td>{item.warranty_start_date}</td>
+                          <td>{item.warranty_end_date}</td>
+                          <td>{item.warranty_status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : <div>No warranty data found.</div>}
+              </div>
+              <div className="modal-footer">
+                <Button variant="secondary" onClick={() => setShowWarrantyModal(false)}>Close</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ToastContainer position="top-right" autoClose={2500} hideProgressBar={false} />
     </div>

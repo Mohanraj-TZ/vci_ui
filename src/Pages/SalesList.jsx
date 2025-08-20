@@ -218,6 +218,7 @@ export default function SalesListPage() {
                           onPdf={() => window.open(`${API_BASE_URL}/sales/${item.id}/invoices`, "_blank")}
                           onEdit={() => navigate(`/sales/edit/${item.id}`)}
                           onDelete={() => handleDelete(item.id)}
+                          onWarranty={() => navigate(`/sales/warranty/${item.id}`)}
                         />
                       </div>
                     </td>

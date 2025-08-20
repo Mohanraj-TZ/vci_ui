@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Button, Row, Col } from 'react-bootstrap';
+import { Form, Button, Row, Col, Card } from 'react-bootstrap';
 import Select from 'react-select';
 import axios from 'axios';
 import { API_BASE_URL } from "../api";
@@ -8,7 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import 'react-toastify/dist/ReactToastify.css';
 
 export default function AddPurchasePage() {
-  const { id } = useParams(); // If editing, this will be set
+  const { id } = useParams();
   const navigate = useNavigate();
 
   const [formErrors, setFormErrors] = useState({});
@@ -18,18 +18,19 @@ export default function AddPurchasePage() {
     invoice_no: '',
     invoice_date: ''
   });
+
   const [categoryBlocks, setCategoryBlocks] = useState([
-    { category_id: null, from_serial: '', to_serial: '' }
+    { category_id: null, from_serial: '', to_serial: '', warranty_start_date: '', warranty_end_date: '', warranty_status: '' }
   ]);
+
   const [loading, setLoading] = useState(true);
 
   const customSelectStyles = {
-    control: base => ({ ...base, backgroundColor: '#fff', borderColor: '#ced4da', minHeight: '38px' }),
+    control: base => ({ ...base, backgroundColor: '#fff', borderColor: '#ced4da', minHeight: '38px', boxShadow: 'none' }),
     menu: base => ({ ...base, backgroundColor: '#fff', zIndex: 9999 }),
-    option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? '#f8f9fa' : '#fff', color: '#000' }),
+    option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? '#f1f3f5' : '#fff', color: '#000' }),
   };
 
-  // Fetch dropdowns (vendors & categories)
   const fetchDropdownData = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/form-dropdowns`);
@@ -39,12 +40,11 @@ export default function AddPurchasePage() {
     }
   };
 
-  // If editing, fetch purchase data
   const fetchPurchaseData = async () => {
     if (!id) return;
     try {
       const res = await axios.get(`${API_BASE_URL}/pcbshow/${id}`);
-      if (res.data && res.data.data) {
+      if (res.data?.data) {
         const p = res.data.data;
         setFormData({
           vendor_id: p.vendor_id,
@@ -56,7 +56,10 @@ export default function AddPurchasePage() {
             p.items.map(item => ({
               category_id: item.category_id,
               from_serial: item.from_serial,
-              to_serial: item.to_serial
+              to_serial: item.to_serial,
+              warranty_start_date: item.warranty_start_date || '',
+              warranty_end_date: item.warranty_end_date || '',
+              warranty_status: item.warranty_status || ''
             }))
           );
         }
@@ -75,7 +78,6 @@ export default function AddPurchasePage() {
     init();
   }, [id]);
 
-  // Handle changes
   const handleChange = e => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -97,17 +99,15 @@ export default function AddPurchasePage() {
   };
 
   const addCategoryBlock = () => {
-    setCategoryBlocks(prev => [...prev, { category_id: null, from_serial: '', to_serial: '' }]);
+    setCategoryBlocks(prev => [...prev, { category_id: null, from_serial: '', to_serial: '', warranty_start_date: '', warranty_end_date: '', warranty_status: '' }]);
   };
 
   const removeCategoryBlock = (index) => {
     setCategoryBlocks(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Submit
   const handleSubmit = async e => {
     e.preventDefault();
-
     const errors = {};
     if (!formData.vendor_id) errors.vendor_id = 'Vendor is required';
     if (!formData.invoice_no.trim()) errors.invoice_no = 'Invoice number is required';
@@ -117,6 +117,9 @@ export default function AddPurchasePage() {
       if (!block.category_id) errors[`category_${idx}`] = 'Category is required';
       if (!block.from_serial) errors[`from_serial_${idx}`] = 'From Serial is required';
       if (!block.to_serial) errors[`to_serial_${idx}`] = 'To Serial is required';
+      if (!block.warranty_start_date) errors[`warranty_start_date_${idx}`] = 'Warranty Start Date is required';
+      if (!block.warranty_end_date) errors[`warranty_end_date_${idx}`] = 'Warranty End Date is required';
+      if (!block.warranty_status) errors[`warranty_status_${idx}`] = 'Warranty Status is required';
     });
 
     setFormErrors(errors);
@@ -139,9 +142,7 @@ export default function AddPurchasePage() {
       }
       setTimeout(() => navigate('/purchaseOrder'), 1000);
     } catch (error) {
-      if (error.response?.status === 422 && error.response.data.errors) {
-        setFormErrors(error.response.data.errors);
-      }
+      if (error.response?.status === 422 && error.response.data.errors) setFormErrors(error.response.data.errors);
       toast.error(error.response?.data?.message || 'Failed to save purchase');
     }
   };
@@ -149,7 +150,7 @@ export default function AddPurchasePage() {
   if (loading) return <div className="p-4">Loading...</div>;
 
   return (
-    <div className="p-4" style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
+    <div className="p-4" style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="mb-0">{id ? 'Edit Purchase' : 'Add Purchase'}</h4>
         <Button variant="outline-secondary" onClick={() => navigate('/purchaseOrder')}>
@@ -157,91 +158,89 @@ export default function AddPurchasePage() {
         </Button>
       </div>
 
-      <Form onSubmit={handleSubmit}>
-        <Row className="mb-3 pt-4">
-          <Col md={4}>
-            <Form.Label>Vendor</Form.Label>
-            <Select
-              styles={customSelectStyles}
-              value={dropdowns.vendors.find(v => v.id === formData.vendor_id) ? { label: dropdowns.vendors.find(v => v.id === formData.vendor_id).name, value: formData.vendor_id } : null}
-              options={dropdowns.vendors.map(v => ({ label: v.name, value: v.id }))}
-              onChange={sel => handleSelectChange(sel, 'vendor_id')}
-              placeholder="Select vendor"
-            />
-            {formErrors.vendor_id && <div className="text-danger small">{formErrors.vendor_id}</div>}
-          </Col>
-          <Col md={4}>
-            <Form.Label>Invoice Number</Form.Label>
-            <Form.Control
-              type="text"
-              name="invoice_no"
-              value={formData.invoice_no}
-              onChange={handleChange}
-            />
-            {formErrors.invoice_no && <div className="text-danger small">{formErrors.invoice_no}</div>}
-          </Col>
-          <Col md={4}>
-            <Form.Label>Invoice Date</Form.Label>
-            <Form.Control
-              type="date"
-              name="invoice_date"
-              value={formData.invoice_date}
-              onChange={handleChange}
-            />
-            {formErrors.invoice_date && <div className="text-danger small">{formErrors.invoice_date}</div>}
-          </Col>
-        </Row>
-
-        {categoryBlocks.map((block, index) => (
-          <Row className="mb-3" key={index}>
+      <Card className="shadow-sm p-4">
+        <Form onSubmit={handleSubmit}>
+          <Row className="mb-4">
             <Col md={4}>
-              <Form.Label>Category</Form.Label>
+              <Form.Label>Vendor</Form.Label>
               <Select
                 styles={customSelectStyles}
-                value={dropdowns.categories.find(c => c.id === block.category_id) ? { label: dropdowns.categories.find(c => c.id === block.category_id).name || dropdowns.categories.find(c => c.id === block.category_id).category, value: block.category_id } : null}
-                options={dropdowns.categories.map(c => ({ label: c.name || c.category, value: c.id }))}
-                onChange={sel => updateCategoryBlock(index, 'category_id', sel ? sel.value : null)}
-                placeholder="Select category"
+                value={dropdowns.vendors.find(v => v.id === formData.vendor_id) ? { label: dropdowns.vendors.find(v => v.id === formData.vendor_id).name, value: formData.vendor_id } : null}
+                options={dropdowns.vendors.map(v => ({ label: v.name, value: v.id }))}
+                onChange={sel => handleSelectChange(sel, 'vendor_id')}
+                placeholder="Select vendor"
               />
-              {formErrors[`category_${index}`] && <div className="text-danger small">{formErrors[`category_${index}`]}</div>}
+              {formErrors.vendor_id && <div className="text-danger small">{formErrors.vendor_id}</div>}
             </Col>
-            <Col md={3}>
-              <Form.Label>From Serial</Form.Label>
-              <Form.Control
-                type="text"
-                value={block.from_serial}
-                onChange={e => updateCategoryBlock(index, 'from_serial', e.target.value)}
-              />
-              {formErrors[`from_serial_${index}`] && <div className="text-danger small">{formErrors[`from_serial_${index}`]}</div>}
+            <Col md={4}>
+              <Form.Label>Invoice Number</Form.Label>
+              <Form.Control type="text" name="invoice_no" value={formData.invoice_no} onChange={handleChange} />
+              {formErrors.invoice_no && <div className="text-danger small">{formErrors.invoice_no}</div>}
             </Col>
-            <Col md={3}>
-              <Form.Label>To Serial</Form.Label>
-              <Form.Control
-                type="text"
-                value={block.to_serial}
-                onChange={e => updateCategoryBlock(index, 'to_serial', e.target.value)}
-              />
-              {formErrors[`to_serial_${index}`] && <div className="text-danger small">{formErrors[`to_serial_${index}`]}</div>}
-            </Col>
-            <Col md={2} className="d-flex align-items-end">
-              {index > 0 && (
-                <Button variant="danger" onClick={() => removeCategoryBlock(index)}>Remove</Button>
-              )}
+            <Col md={4}>
+              <Form.Label>Invoice Date</Form.Label>
+              <Form.Control type="date" name="invoice_date" value={formData.invoice_date} onChange={handleChange} />
+              {formErrors.invoice_date && <div className="text-danger small">{formErrors.invoice_date}</div>}
             </Col>
           </Row>
-        ))}
 
-        <div className="mb-3">
-          <Button variant="outline-primary" onClick={addCategoryBlock}>
-            + Add Another Category
-          </Button>
-        </div>
+          {categoryBlocks.map((block, index) => (
+            <Card key={index} className="mb-3 p-3 border border-secondary shadow-sm">
+              <Row className="align-items-end">
+                <Col md={3}>
+                  <Form.Label>Category</Form.Label>
+                  <Select
+                    styles={customSelectStyles}
+                    value={dropdowns.categories.find(c => c.id === block.category_id) ? { label: dropdowns.categories.find(c => c.id === block.category_id).name || dropdowns.categories.find(c => c.id === block.category_id).category, value: block.category_id } : null}
+                    options={dropdowns.categories.map(c => ({ label: c.name || c.category, value: c.id }))}
+                    onChange={sel => updateCategoryBlock(index, 'category_id', sel ? sel.value : null)}
+                    placeholder="Select category"
+                  />
+                  {formErrors[`category_${index}`] && <div className="text-danger small">{formErrors[`category_${index}`]}</div>}
+                </Col>
+                <Col md={2}>
+                  <Form.Label>From Serial</Form.Label>
+                  <Form.Control type="text" value={block.from_serial} onChange={e => updateCategoryBlock(index, 'from_serial', e.target.value)} />
+                  {formErrors[`from_serial_${index}`] && <div className="text-danger small">{formErrors[`from_serial_${index}`]}</div>}
+                </Col>
+                <Col md={2}>
+                  <Form.Label>To Serial</Form.Label>
+                  <Form.Control type="text" value={block.to_serial} onChange={e => updateCategoryBlock(index, 'to_serial', e.target.value)} />
+                  {formErrors[`to_serial_${index}`] && <div className="text-danger small">{formErrors[`to_serial_${index}`]}</div>}
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Warranty Start</Form.Label>
+                  <Form.Control type="date" value={block.warranty_start_date} onChange={e => updateCategoryBlock(index, 'warranty_start_date', e.target.value)} />
+                  {formErrors[`warranty_start_date_${index}`] && <div className="text-danger small">{formErrors[`warranty_start_date_${index}`]}</div>}
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Warranty End</Form.Label>
+                  <Form.Control type="date" value={block.warranty_end_date} onChange={e => updateCategoryBlock(index, 'warranty_end_date', e.target.value)} />
+                  {formErrors[`warranty_end_date_${index}`] && <div className="text-danger small">{formErrors[`warranty_end_date_${index}`]}</div>}
+                </Col>
+                <Col md={1}>
+                  <Form.Label>Status</Form.Label>
+                  <Form.Control type="text" value={block.warranty_status} onChange={e => updateCategoryBlock(index, 'warranty_status', e.target.value)} />
+                  {formErrors[`warranty_status_${index}`] && <div className="text-danger small">{formErrors[`warranty_status_${index}`]}</div>}
+                </Col>
+              </Row>
+              <div className="d-flex justify-content-end mt-2">
+                {index > 0 && <Button variant="danger" size="sm" onClick={() => removeCategoryBlock(index)}>Remove</Button>}
+              </div>
+            </Card>
+          ))}
 
-        <div className="d-flex justify-content-end">
-          <Button variant="secondary" className="me-2" onClick={() => navigate('/purchaseOrder')}>Cancel</Button>
-          <Button type="submit" variant="success">{id ? 'Update Purchase' : 'Save Purchase'}</Button>
-        </div>
-      </Form>
+          <div className="mb-3">
+            <Button variant="outline-primary" onClick={addCategoryBlock}>+ Add Another Category</Button>
+          </div>
+
+          <div className="d-flex justify-content-end mt-4">
+            <Button variant="secondary" className="me-2" onClick={() => navigate('/purchaseOrder')}>Cancel</Button>
+            <Button type="submit" variant="success">{id ? 'Update Purchase' : 'Save Purchase'}</Button>
+          </div>
+        </Form>
+      </Card>
+
       <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );

@@ -50,6 +50,13 @@ import UrgentVci from './Pages/UrgentVci';
 import ChangedVciPage from "./Pages/ChnagedVci"; 
 import EditUrgentVci from "./Pages/EditUrgentVci"; 
 
+
+import PcbDamageList from "./Pages/PcbDamageList";
+import AddPcbDamage from "./Pages/AddPcbDamage";
+
+import SparepartDamageList from "./Pages/SparepartDamageList";
+import AddSparepartDamage from "./Pages/AddSparepartDamage";
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('authToken'));
 
@@ -151,6 +158,13 @@ export default function App() {
 
       <Route path="/changedvci" element={<ChangedVciPage />} />
         <Route path="/changed-vci/edit/:id" element={<EditUrgentVci />} />
+
+        
+       <Route path="purchaseDamage" element={<PcbDamageList />} />
+                               <Route path="/damaged-items/add" element={<AddPcbDamage />} />
+
+                                <Route path="sparepartDamage" element={<SparepartDamageList />} />
+                                 <Route path="/damaged/add" element={<AddSparepartDamage />} />
 
         </Route>
 

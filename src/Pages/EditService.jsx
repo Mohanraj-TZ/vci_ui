@@ -4,6 +4,8 @@ import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import Select from 'react-select';
+
 
 const formatDateForInput = (dateString) => {
     if (!dateString) return "";
@@ -37,6 +39,16 @@ export default function EditService() {
         to_place: "",
     });
 
+const issueOptions = [
+    { value: "Yes", label: "Yes" },
+    { value: "No", label: "No" },
+    { value: "OBD Connector", label: "OBD Connector" },
+    { value: "End Plate", label: "End Plate" },
+     { value: "white panel", label: "white panel" },
+      { value: "Rubber Case", label: "Rubber Case" },
+];
+
+
     const [items, setItems] = useState([]);
     const [categories, setCategories] = useState([]);
     const [statusOptions] = useState([
@@ -56,6 +68,7 @@ export default function EditService() {
         setMessage({ type, text });
         setTimeout(() => setMessage({ type: "", text: "" }), 3000);
     };
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -400,12 +413,28 @@ export default function EditService() {
                                         </Form.Control>
                                     </td>
                                     <td>
-                                        <Form.Control
+{/*                                         <Form.Control
                                             value={item.issue_found}
                                             onChange={(e) =>
                                                 handleItemChange(idx, "issue_found", e.target.value)
                                             }
-                                        />
+                                        /> */}
+
+<Select
+    options={issueOptions}
+    isMulti
+    value={issueOptions.filter(opt => 
+        (item.issue_found || []).includes(opt.value)
+    )}
+    onChange={(selected) =>
+        handleItemChange(
+            idx,
+            "issue_found",
+            selected ? selected.map(s => s.value) : []
+        )
+    }
+/>
+
                                     </td>
                                     <td>
                                         <Form.Control

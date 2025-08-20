@@ -23,7 +23,7 @@ export default function PurchaseListPage() {
   const [showWarrantyModal, setShowWarrantyModal] = useState(false);
   const [warrantyData, setWarrantyData] = useState(null);
 
-  const [sortColumn, setSortColumn] = useState("vendor");
+  const [sortColumn, setSortColumn] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
 
   const fetchPurchases = () => {
@@ -146,7 +146,8 @@ export default function PurchaseListPage() {
           <table className="table table-sm custom-table align-middle mb-0">
             <thead style={{ backgroundColor: "#2E3A59", color: "white", fontSize: "0.82rem", height: "40px", verticalAlign: "middle" }}>
               <tr>
-                <th style={{ width: "60px", textAlign: "center" }}>S.No</th>
+                <th style={{ width: "60px", textAlign: "center", backgroundColor: "#2E3A59",
+                    color: "white", }}>S.No</th>
                 {renderHeader("Vendor", "vendor")}
                 {renderHeader("Invoice No", "invoice_no")}
                 {renderHeader("Invoice Date", "invoice_date")}
@@ -155,7 +156,8 @@ export default function PurchaseListPage() {
                 {renderHeader("Status", "status")}
                 {renderHeader("Warranty Status", "warranty_status")}
                 {renderHeader("Expired Service Cost", "expired_service_cost")}
-                <th style={{ width: "140px" }}>Actions</th>
+                <th style={{ width: "140px",backgroundColor: "#2E3A59",
+                    color: "white", }}>Actions</th>
               </tr>
             </thead>
             <tbody>

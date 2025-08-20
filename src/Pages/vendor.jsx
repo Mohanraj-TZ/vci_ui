@@ -59,11 +59,16 @@ export default function vendor() {
     const [sortDirection, setSortDirection] = useState("asc");
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
+    // const navigate = useNavigate();
 
     const tableRef = useRef(null);
-
-    // const apiBase = "http://127.0.0.1:8000/api";
-
+const authToken = localStorage.getItem('authToken');
+if (authToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+} else {
+    // Handle cases where the user is not authenticated (e.g., redirect to login)
+    console.error("No authentication token found. User is not logged in.");
+}
     // Put this ABOVE your useEffect
     const loadInitialData = async () => {
         setLoading(true);
@@ -84,6 +89,15 @@ export default function vendor() {
             setLoading(false);
         }
     };
+    useEffect(() => {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            // If the token is missing, redirect to the login page
+            navigate('/login');
+            toast.error("Please log in to access this page.");
+        }
+        // ... rest of your useEffect logic
+    },);
 
     // Then your effect just calls it
     useEffect(() => {

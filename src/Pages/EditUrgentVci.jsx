@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Form, Button, Table, Row, Col, Alert } from "react-bootstrap";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 const API_BASE_URL = "http://localhost:8000/api";
 
-export default function UrgentVci() {
+export default function EditUrgentVci() {
   const navigate = useNavigate();
+  const { id } = useParams(); 
 
-  // We will now store all PCB serials here, fetched once.
   const [allPcbSerials, setAllPcbSerials] = useState([]);
   const [formData, setFormData] = useState({
     challan_no: "",
@@ -23,28 +23,14 @@ export default function UrgentVci() {
     quantity: "",
   });
 
-  const [items, setItems] = useState([
-    {
-      category_id: "",
-      vci_serial_no: "",
-      is_urgent: "Yes",
-      hsn_code: "",
-      tested_date: "",
-      issue_found: "",
-      action_taken: "",
-      remarks: "",
-      testing_assigned_to: "",
-      testing_status: "pending",
-      pcb_serial_no: "",
-      purchase_id: "",
-    },
-  ]);
-
+  const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [serviceVciSerials, setServiceVciSerials] = useState([]);
+  const [initialVciSerials, setInitialVciSerials] = useState([]);
+
 
   const statusOptions = [
     { value: "in_transit", label: "In Transit" },
@@ -71,29 +57,64 @@ export default function UrgentVci() {
   };
 
   useEffect(() => {
-    const fetchDropdownData = async () => {
+    const fetchData = async () => {
+      setIsLoading(true);
       try {
-        // Fetch categories, urgent serials, and ALL default PCB serials
-        const [categoriesResponse, serialsResponse, pcbSerialsResponse] =
-          await Promise.all([
-            axios.get(`${API_BASE_URL}/form-dropdowns`),
-            axios.get(`${API_BASE_URL}/urgent-serials`),
-            axios.get(`${API_BASE_URL}/defaultvci`), 
-          ]);
+        // Fetch the data for the specific ID and all dropdown data
+        const [
+          urgentVciResponse,
+          categoriesResponse,
+          serialsResponse,
+          pcbSerialsResponse,
+        ] = await Promise.all([
+          axios.get(`${API_BASE_URL}/urgentvci/${id}`),
+          axios.get(`${API_BASE_URL}/form-dropdowns`),
+          axios.get(`${API_BASE_URL}/urgent-serials`),
+          axios.get(`${API_BASE_URL}/defaultvci`),
+        ]);
 
+        const urgentData = urgentVciResponse.data;
         const cats = categoriesResponse.data?.data?.categories || [];
-        setCategories(cats.map((c) => ({ value: c.id, label: c.category })));
-        setServiceVciSerials(serialsResponse.data.service_vci_serials || []);
+        const urgentSerials = serialsResponse.data.service_vci_serials || [];
+        const allPcbSerialsData = pcbSerialsResponse.data?.vcis || [];
 
-        // Update the state with all PCB serials
-        setAllPcbSerials(pcbSerialsResponse.data?.vcis || []);
+        // Set form and item data from the fetched record
+        setFormData({
+          challan_no: urgentData.challan_no,
+          challan_date: urgentData.challan_date,
+          courier_name: urgentData.courier_name,
+          description: urgentData.description,
+          remarks: urgentData.remarks,
+          sent_date: urgentData.sent_date,
+          received_date: urgentData.received_date,
+          from_place: urgentData.from_place,
+          to_place: urgentData.to_place,
+          quantity: urgentData.quantity,
+        });
+        setItems(urgentData.items || []);
+
+        // Populate dropdowns
+        setCategories(cats.map((c) => ({ value: c.id, label: c.category })));
+        setAllPcbSerials(allPcbSerialsData);
+
+        // Filter the available urgent VCI serials by removing those already in the form
+        const initialVciSerialsInForm = urgentData.items.map(item => ({ id: item.id, vci_serial_no: item.vci_serial_no }));
+        setInitialVciSerials(initialVciSerialsInForm);
+        const availableUrgentSerials = urgentSerials.filter(serial => 
+            !initialVciSerialsInForm.some(initialSerial => initialSerial.vci_serial_no === serial.vci_serial_no)
+        );
+        setServiceVciSerials([...initialVciSerialsInForm.map(s => ({...s, challan_no: urgentData.challan_no})), ...availableUrgentSerials]);
+
       } catch (err) {
-        showToast("Failed to load dropdown data", "danger");
+        showToast("Failed to load data for editing", "danger");
         console.error("Data load error:", err);
+        navigate("/urgent-vci-list");
+      } finally {
+        setIsLoading(false);
       }
     };
-    fetchDropdownData();
-  }, []);
+    fetchData();
+  }, [id, navigate]);
 
   useEffect(() => {
     if (formData.from_place === "Mahle") {
@@ -119,7 +140,6 @@ export default function UrgentVci() {
     setItems(updatedItems);
   };
 
-  // This function is now much simpler as it doesn't need to fetch
   const handleVciSerialChange = (index, value) => {
     const selectedVci = serviceVciSerials.find((s) => s.vci_serial_no === value);
     const updatedItems = [...items];
@@ -148,10 +168,19 @@ export default function UrgentVci() {
   };
 
   const removeItemRow = (index) => {
-    const updatedItems = [...items];
-    updatedItems.splice(index, 1);
-    setItems(updatedItems);
-  };
+    // Check if the item is one of the original items fetched from the database.
+    const itemToRemove = items[index];
+    const isInitialItem = initialVciSerials.some(initialSerial => initialSerial.vci_serial_no === itemToRemove.vci_serial_no);
+
+    if (isInitialItem) {
+        showToast("Cannot remove an item that was part of the original record. Please edit the details or delete the entire urgent service entry.", "danger");
+        return;
+    }
+    
+    const updatedItems = [...items];
+    updatedItems.splice(index, 1);
+    setItems(updatedItems);
+};
 
   const validateForm = () => {
     let newErrors = {};
@@ -210,41 +239,13 @@ export default function UrgentVci() {
       };
 
       try {
-        const response = await axios.post(`${API_BASE_URL}/urgentvci`, payload);
-        if (response.status === 201) {
-          showToast("Urgent service saved successfully", "success");
-          // Reset form on success
-          setFormData({
-            challan_no: "",
-            challan_date: "",
-            courier_name: "",
-            description: "",
-            remarks: "",
-            sent_date: "",
-            received_date: "",
-            from_place: "",
-            to_place: "",
-            quantity: "",
-          });
-          setItems([
-            {
-              category_id: "",
-              vci_serial_no: "",
-              is_urgent: "Yes",
-              hsn_code: "",
-              tested_date: "",
-              issue_found: "",
-              action_taken: "",
-              remarks: "",
-              testing_assigned_to: "",
-              testing_status: "pending",
-              pcb_serial_no: "",
-              purchase_id: "",
-            },
-          ]);
-          setTimeout(() => navigate("/changedvci"), 1000);
+        // Use the PUT route for updating
+        const response = await axios.put(`${API_BASE_URL}/urgentvci/${id}`, payload);
+        if (response.status === 200) {
+          showToast("Urgent service updated successfully", "success");
+          setTimeout(() => navigate("/urgent-vci-list"), 1000);
         } else {
-          showToast("Failed to save urgent service", "danger");
+          showToast("Failed to update urgent service", "danger");
         }
       } catch (error) {
         if (error.response && error.response.data && error.response.data.errors) {
@@ -264,6 +265,22 @@ export default function UrgentVci() {
     }
   };
 
+  const handleDelete = async () => {
+    if(window.confirm("Are you sure you want to delete this urgent service entry? This action cannot be undone.")){
+      setIsLoading(true);
+      try {
+        await axios.delete(`${API_BASE_URL}/urgentvci/${id}`);
+        showToast("Urgent service deleted successfully", "success");
+        setTimeout(() => navigate("/urgent-vci-list"), 1000);
+      } catch (error) {
+        showToast("Failed to delete the urgent service entry.", "danger");
+        console.error("Delete error:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }
+
   return (
     <div className="container-fluid bg-white p-4">
       {toast.show && (
@@ -279,13 +296,22 @@ export default function UrgentVci() {
       )}
 
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">Add New Urgent Service</h5>
+        <h5 className="mb-0">Edit Urgent Service</h5>
+        <div>
+        <Button
+          variant="danger"
+          onClick={handleDelete}
+          className="me-2"
+        >
+          <i className="bi bi-trash"></i> Delete
+        </Button>
         <Button
           variant="secondary"
           onClick={() => navigate("/urgent-vci-list")}
         >
           <i className="bi bi-arrow-left me-1"></i> Back
         </Button>
+        </div>
       </div>
 
       <Form onSubmit={handleSubmit}>
@@ -512,9 +538,9 @@ export default function UrgentVci() {
                       autoComplete="off"
                     >
                       <option value="">Select VCI Serial</option>
-                      {serviceVciSerials.map((s) => (
-                        <option key={s.id} value={s.vci_serial_no}>
-                          {s.vci_serial_no} (Challan: {s.challan_no})
+                      {serviceVciSerials.map((s, sIdx) => (
+                        <option key={sIdx} value={s.vci_serial_no}>
+                          {s.vci_serial_no} {s.challan_no ? `(Challan: ${s.challan_no})` : ''}
                         </option>
                       ))}
                     </Form.Select>
@@ -610,6 +636,7 @@ export default function UrgentVci() {
                       variant="outline-danger"
                       size="sm"
                       onClick={() => removeItemRow(idx)}
+                      disabled={initialVciSerials.some(s => s.vci_serial_no === item.vci_serial_no)}
                     >
                       <i className="bi bi-trash"></i>
                     </Button>
@@ -623,8 +650,8 @@ export default function UrgentVci() {
           </Button>
         </div>
         <div className="mt-3 text-end">
-          <Button type="submit" variant="success" disabled={isLoading}>
-            {isLoading ? "Saving..." : "Save Urgent Service"}
+          <Button type="submit" variant="primary" disabled={isLoading}>
+            {isLoading ? "Updating..." : "Update Urgent Service"}
           </Button>
         </div>
       </Form>

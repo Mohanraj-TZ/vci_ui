@@ -13,9 +13,11 @@ import withReactContent from 'sweetalert2-react-content';
 import Breadcrumb from "./Components/Breadcrumb";
 import Pagination from "./Components/Pagination";
 import Search from "./Components/Search";
+import { useNavigate } from 'react-router-dom'; // Import useNavigate for routing
 
 const MySwal = withReactContent(Swal);
 import { API_BASE_URL } from "../api";
+
 const CustomDropdown = ({ name, value, onChange, options, isInvalid, error }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -68,6 +70,7 @@ const CustomDropdown = ({ name, value, onChange, options, isInvalid, error }) =>
   );
 };
 
+// ---
 export default function App() {
   const [spareparts, setSpareparts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -79,8 +82,9 @@ export default function App() {
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState("dec"); // default sort field
-  const [sortDirection, setSortDirection] = useState("asc"); // default sort direction
+  const [sortField, setSortField] = useState("name"); // Corrected default sort field
+  const [sortDirection, setSortDirection] = useState("asc");
+  const navigate = useNavigate();
 
   function initialFormState() {
     return {
@@ -92,49 +96,63 @@ export default function App() {
     };
   }
 
+  // Effect to handle data fetching and token validation
   useEffect(() => {
-    fetchSpareparts();
-  }, []);
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error("Please log in to access this page.", { toastId: 'auth-error' });
+      navigate('/login');
+    } else {
+      fetchSpareparts();
+    }
+  }, [navigate]);
 
-  // useEffect(() => {
-  //   if ($.fn.DataTable.isDataTable(tableRef.current)) {
-  //     $(tableRef.current).DataTable().destroy();
-  //   }
-  //   if (spareparts.length > 0) {
-  //     $(tableRef.current).DataTable({
-  //       ordering: true,
-  //       paging: true,
-  //       searching: true,
-  //       lengthChange: true,
-  //       columnDefs: [{ targets: 0, className: "text-center" }],
-  //     });
-  //   }
-  // }, [spareparts]);
+  // Effect for DataTables initialization and destruction
   useEffect(() => {
     if ($.fn.DataTable.isDataTable(tableRef.current)) {
       $(tableRef.current).DataTable().destroy();
     }
     if (spareparts.length > 0) {
-      $(tableRef.current).DataTable({
+      const dataTable = $(tableRef.current).DataTable({
         ordering: true,
-        paging: false,       // updated
-        searching: false,    // updated
-        lengthChange: false, // updated
-        info: false,         // updated
+        paging: false,
+        searching: false,
+        lengthChange: false,
+        info: false,
         columnDefs: [{ targets: 0, className: "text-center" }],
       });
+      // Cleanup function to destroy DataTable on unmount
+      return () => {
+        dataTable.destroy();
+      };
     }
   }, [spareparts]);
 
   const fetchSpareparts = async () => {
     setLoading(true);
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await axios.get(`${API_BASE_URL}/spareparts`);
+      const response = await axios.get(`${API_BASE_URL}/spareparts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const fetchedData = response.data.data;
       setSpareparts(fetchedData);
     } catch (error) {
       console.error("Error fetching spareparts:", error);
-      if (showForm) toast.error("Failed to fetch spare parts.", { toastId: "fetch-fail" });
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please log in again.", { toastId: 'auth-expired' });
+        navigate('/login');
+      } else {
+        toast.error("Failed to fetch spare parts.", { toastId: "fetch-fail" });
+      }
     } finally {
       setLoading(false);
     }
@@ -142,21 +160,20 @@ export default function App() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
+    // Allow spaces and letters for the name field
     if (name === "name") {
       const alphaRegex = /^[A-Za-z\s]*$/;
       if (!alphaRegex.test(value)) {
-        setErrors((prev) => ({ ...prev, name: "Only letters are allowed." }));
-        return; // reject invalid character
+        setErrors((prev) => ({ ...prev, name: "Only letters and spaces are allowed." }));
+        return;
       }
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" })); // clear error on valid input
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
-
 
   const validateForm = () => {
     const newErrors = {};
@@ -164,10 +181,10 @@ export default function App() {
     if (!editingPart) {
       if (!formData.quantity || isNaN(formData.quantity) || parseInt(formData.quantity, 10) < 0) newErrors.quantity = "Opening Stock must be a non-negative number.";
       if (formData.quantity_per_vci === "" || isNaN(formData.quantity_per_vci) || parseInt(formData.quantity_per_vci, 10) <= 0) newErrors.quantity_per_vci = "Quantity per VCI must be a positive number.";
-      if (!formData.is_active || !["Enable", "Disable"].includes(formData.is_active)) newErrors.is_active = "Status must be Enable or Disable.";
     } else {
+      // For updates, allow empty quantity and quantity_per_vci
       if (formData.quantity && (isNaN(formData.quantity) || parseInt(formData.quantity, 10) < 0)) newErrors.quantity = "Quantity to add must be a non-negative number.";
-      if (formData.quantity_per_vci && (isNaN(formData.quantity_per_vci) || parseInt(formData.quantity_per_vci, 10) <= 0)) newErrors.quantity_per_vci = "Quantity per VCI must be a non-negative number.";
+      if (formData.quantity_per_vci && (isNaN(formData.quantity_per_vci) || parseInt(formData.quantity_per_vci, 10) <= 0)) newErrors.quantity_per_vci = "Quantity per VCI must be a positive number.";
     }
     return newErrors;
   };
@@ -181,148 +198,100 @@ export default function App() {
       return;
     }
 
+    const token = localStorage.getItem('authToken');
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+
     let payload = {
       name: formData.name,
       notes: formData.notes,
-      is_active: formData.is_active
+      is_active: formData.is_active,
     };
-
     if (editingPart) {
-      if (formData.quantity) payload.quantity = parseInt(formData.quantity, 10);
-      if (formData.quantity_per_vci) payload.quantity_per_vci = parseInt(formData.quantity_per_vci, 10);
+      payload.quantity_per_vci = parseInt(formData.quantity_per_vci, 10);
+      if (formData.quantity) {
+        payload.quantity = parseInt(formData.quantity, 10);
+      }
     } else {
       payload.quantity = parseInt(formData.quantity, 10);
       payload.quantity_per_vci = parseInt(formData.quantity_per_vci, 10);
     }
-
+    
+    // Set a flag to prevent multiple submissions
+    let isSubmitting = true;
     try {
-      if ($.fn.DataTable.isDataTable(tableRef.current)) {
-        $(tableRef.current).DataTable().destroy();
-      }
-
       let response;
       if (editingPart) {
-        response = await axios.put(`${API_BASE_URL}/spareparts/${editingPart.id}`, payload);
+        response = await axios.put(`${API_BASE_URL}/spareparts/${editingPart.id}`, payload, config);
       } else {
-        response = await axios.post(`${API_BASE_URL}/spareparts`, payload);
+        response = await axios.post(`${API_BASE_URL}/spareparts`, payload, config);
       }
-
-      toast.success(`Spare part ${editingPart ? "updated" : "added"} successfully!`, {
-        toastId: editingPart ? "update-success" : "create-success"
-      });
-
+      
+      toast.success(`Spare part ${editingPart ? "updated" : "added"} successfully!`);
       closeForm();
-
-      let newData = [...spareparts];
-      if (editingPart) {
-        const index = newData.findIndex(p => p.id === editingPart.id);
-        if (index !== -1) {
-          newData[index] = { ...newData[index], ...payload };
-        }
-      } else {
-        newData.push(response.data.data);
-      }
-
-      setSpareparts(newData);
-
-      setTimeout(() => {
-        if ($.fn.DataTable.isDataTable(tableRef.current)) {
-          $(tableRef.current).DataTable().destroy();
-        }
-        if (newData.length > 0) {
-          $(tableRef.current).DataTable({
-            ordering: true,
-            paging: false,       // updated
-            searching: false,    // updated
-            lengthChange: false, // updated
-            info: false,         // updated
-            columnDefs: [{ targets: 0, className: "text-center" }],
-          });
-        }
-      }, 0);
-
+      fetchSpareparts();
     } catch (error) {
-      console.error("Error saving sparepart:", error);
-      if (error.response?.data) {
-        const { message, errors: backendErrors } = error.response.data;
-        let newErrors = {};
-        if (backendErrors) {
-          Object.entries(backendErrors).forEach(([field, msgs]) => {
-            newErrors[field] = Array.isArray(msgs) ? msgs[0] : msgs;
-            toast.error(Array.isArray(msgs) ? msgs[0] : msgs);
-          });
-        } else if (message) {
-          toast.error(`Failed to save spare part: ${message}`);
-        } else {
-          toast.error("Failed to save spare part.");
-        }
-        setErrors(newErrors);
+      console.error("Error saving sparepart:", error.response || error);
+      if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+        Object.values(error.response.data.errors).flat().forEach(msg => {
+          toast.error(msg);
+        });
+      } else if (error.response?.data?.message) {
+        toast.error(`Failed to save spare part: ${error.response.data.message}`);
       } else {
-        toast.error("Network error while saving spare part.");
+        toast.error("Failed to save spare part due to a network or server error.");
       }
+    } finally {
+      isSubmitting = false; // Reset the flag
     }
   };
 
-  const handleDelete = async (id) => {
+const handleDelete = async (id) => {
     const result = await MySwal.fire({
-      title: "Are you sure?",
-      text: "Do you really want to delete this spare part?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#2FA64F",
-      confirmButtonText: "Yes, delete it!",
-      customClass: {
-        popup: "custom-compact"
-      }
+        title: "Are you sure?",
+        text: "Do you really want to delete this spare part?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#2FA64F",
+        confirmButtonText: "Yes, delete it!",
     });
 
     if (!result.isConfirmed) return;
 
+    const token = localStorage.getItem('authToken');
+    const config = {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    };
+
     try {
-      if ($.fn.DataTable.isDataTable(tableRef.current)) {
-        $(tableRef.current).DataTable().destroy();
-      }
+        // Correct API call with the item's ID and token
+        await axios.delete(`${API_BASE_URL}/spareparts/${id}`, config);
+        toast.success("Spare part deleted successfully!");
 
-      await axios.delete(`${API_BASE_URL}/spareparts/${id}`);
-      toast.success("Spare part deleted successfully!");
-
-      if (editingPart?.id === id) closeForm();
-
-      const updatedSpareparts = spareparts.filter(part => part.id !== id);
-      setSpareparts(updatedSpareparts);
-
-      setTimeout(() => {
-        if ($.fn.DataTable.isDataTable(tableRef.current)) {
-          $(tableRef.current).DataTable().destroy();
-        }
-        if (newData.length > 0) {
-          $(tableRef.current).DataTable({
-            ordering: true,
-            paging: false,       // updated
-            searching: false,    // updated
-            lengthChange: false, // updated
-            info: false,         // updated
-            columnDefs: [{ targets: 0, className: "text-center" }],
-          });
-        }
-      }, 0);
+        // Update the state to remove the deleted item
+        const updatedSpareparts = spareparts.filter(part => part.id !== id);
+        setSpareparts(updatedSpareparts);
 
     } catch (error) {
-      console.error("Error deleting:", error);
-      if (error.response?.data?.message) {
-        toast.error(`Failed to delete spare part: ${error.response.data.message}`);
-      } else {
-        toast.error("Failed to delete spare part.");
-      }
+        console.error("Error deleting:", error);
+        if (error.response?.data?.message) {
+            toast.error(`Failed to delete spare part: ${error.response.data.message}`);
+        } else {
+            toast.error("Failed to delete spare part.");
+        }
     }
-  };
+};
   const handleSort = (field) => {
     if (field === sortField) {
-      // Toggle direction
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
-      // New sort field
       setSortField(field);
       setSortDirection("asc");
     }
@@ -361,56 +330,36 @@ export default function App() {
     marginTop: "4px",
   };
 
-  const getInputStyle = (fieldName) => ({
-    width: "100%",
-    height: "50px",
-    fontFamily: "Product Sans, sans-serif",
-    fontWeight: 400,
-    fontSize: "16px",
-    borderRadius: "4px",
-    border: `1px solid ${errors[fieldName] ? "#dc3545" : "#D3DBD5"}`,
-    backgroundColor: "#FFFFFF",
-    color: "#212529",
-    padding: "0 10px",
-  });
-
-  const getTextAreaStyle = (fieldName) => ({
-    width: "100%",
-    minHeight: "100px",
-    fontFamily: "Product Sans, sans-serif",
-    fontWeight: 400,
-    fontSize: "16px",
-    borderRadius: "4px",
-    border: `1px solid ${errors[fieldName] ? "#dc3545" : "#D3DBD5"}`,
-    backgroundColor: "#FFFFFF",
-    color: "#212529",
-    padding: "10px",
-  });
-
-  const drawerClass = showForm ? "slide-in" : "slide-out";
-
   const statusOptions = [
     { value: "Enable", label: "Enable" },
     { value: "Disable", label: "Disable" },
   ];
-  const paginated = spareparts
+
+  const filteredAndSortedSpareparts = spareparts
     .filter(part => {
       const searchLower = search.toLowerCase();
-
       return (
         part.name.toLowerCase().includes(searchLower) ||
         part.is_active.toLowerCase().includes(searchLower) ||
-        part.quantity.toString().includes(searchLower)
+        (part.quantity && part.quantity.toString().includes(searchLower)) ||
+        (part.quantity_per_vci && part.quantity_per_vci.toString().includes(searchLower))
       );
     })
     .sort((a, b) => {
-      const valueA = a[sortField] ?? "";
-      const valueB = b[sortField] ?? "";
-      if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
-      if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const result = aValue.localeCompare(bValue);
+        return sortDirection === 'asc' ? result : -result;
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        const result = aValue - bValue;
+        return sortDirection === 'asc' ? result : -result;
+      }
       return 0;
-    })
-    .slice((page - 1) * perPage, page * perPage);
+    });
+
+  const paginated = filteredAndSortedSpareparts.slice((page - 1) * perPage, page * perPage);
 
   return (
     <div className="px-4 " style={{ fontSize: "0.75rem" }}>
@@ -469,10 +418,9 @@ export default function App() {
           </div>
         </div>
         <div className="table-responsive">
-          <table className="table align-middle mb-0">
+          <table className="table align-middle mb-0" ref={tableRef}>
             <thead style={{
-              backgroundColor: "#2E3A59", color: "white", fontSize: "0.82rem", height: "40px",           // Increased height
-
+              backgroundColor: "#2E3A59", color: "white", fontSize: "0.82rem", height: "40px",
               verticalAlign: "middle",
             }}>
               <tr>
@@ -497,7 +445,7 @@ export default function App() {
                 </th>
                 <th
                   onClick={() => handleSort("notes")}
-                  style={{ width: "250px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>
+                  style={{ cursor: "pointer", width: "250px", textAlign: "center", backgroundColor: "#2E3A59", color: "white" }}>
                   Notes {sortField === "notes" && (sortDirection === "asc" ? "▲" : "▼")}
                 </th>
                 <th
@@ -526,6 +474,7 @@ export default function App() {
                       alt="No data"
                       style={{ width: 80, height: 100, opacity: 0.6 }}
                     />
+                    <p className="mt-2">No spare parts found.</p>
                   </td>
                 </tr>
               ) : (
@@ -574,13 +523,10 @@ export default function App() {
                 ))
               )}
             </tbody>
-
-
           </table>
         </div>
 
-
-        <Pagination page={page} setPage={setPage} perPage={perPage} totalEntries={spareparts.length} />
+        <Pagination page={page} setPage={setPage} perPage={perPage} totalEntries={filteredAndSortedSpareparts.length} />
       </Card>
 
       {showForm && (
@@ -608,7 +554,6 @@ export default function App() {
             </div>
           </Offcanvas.Header>
 
-
           <Offcanvas.Body className="px-3 py-2" style={{ fontSize: "14px" }}>
             <form onSubmit={handleFormSubmit}>
               <div className="row g-2">
@@ -633,7 +578,7 @@ export default function App() {
 
                 <div className="mb-2 col-6">
                   <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
-                    Quantity per VCI
+                    Quantity per VCI <span style={{ color: "red" }}>*</span>
                   </Form.Label>
                   <Form.Control
                     type="number"
@@ -674,7 +619,7 @@ export default function App() {
                   {editingPart ? (
                     <>
                       <Form.Label className="mb-1" style={{ fontSize: "13px", fontWeight: 500 }}>
-                        Current Stock <span style={{ color: "red" }}>*</span>
+                        Current Stock
                       </Form.Label>
                       <Form.Control
                         type="text"
@@ -727,15 +672,10 @@ export default function App() {
                     error={errors.is_active}
                   />
                 </div>
-
-
-
-
-
               </div>
 
               <div className="d-flex justify-content-end gap-2 mt-3">
-                <Button className="btn-common btn-cancel" variant="light" onClick={() => setShowForm(false)}>
+                <Button className="btn-common btn-cancel" variant="light" onClick={closeForm}>
                   Cancel
                 </Button>
                 <Button
@@ -749,178 +689,100 @@ export default function App() {
             </form>
           </Offcanvas.Body>
         </Offcanvas>
-
-
       )}
       <style>{`
-          .slide-in {
-            position: fixed;
-            top: 0;
-            right: 0;
-            width: 600px;
-            height: 100vh;
-            transition: right 0.4s ease-in-out;
-            z-index: 2000;
-          }
-
-          .slide-out {
-            position: fixed;
-            top: 0;
-            right: -600px;
-            width: 600px;
-            height: 100vh;
-            transition: right 0.4s ease-in-out;
-            z-index: 2000;
-          }
-            .custom-offcanvas .form-select {
-  font-size: 16px;
-  padding: 4px 22px 5px 10px; /* slightly more padding */
-  height: 34px; /* lightly bigger height */
-  line-height: 1.3;
-}
-
-.custom-offcanvas .form-control {
-  font-size: 14px;
-  height: 34px;
-  padding: 4px 10px;
-  line-height: 1.3;
-}
-
-.custom-offcanvas .custom-dropdown-container {
-  height: 32px;
-}
-
-.custom-offcanvas .custom-dropdown-toggle {
-  font-size: 14px;
-  padding: 4px 10px;
-}
-
-
-          .custom-table th, .custom-table td {
-            font-weight: 400;
-            font-size: 16px;
-            color: #212529;
-            white-space: normal;
-          }
-
-          .flex-grow-1 {
-            overflow-x: auto !important;
-          }
-
-          .custom-placeholder::placeholder {
-            font-family: 'Product Sans', sans-serif;
-            font-weight: 400;
-            color: #828282;
-          }
-
-          .form-control:focus {
-            border-color: #CED4DA !important;
-            box-shadow: none !important;
-          }
-
-          .form-control:valid {
-            border-color: #CED4DA !important;
-            box-shadow: none !important;
-          }
-
-          .form-control.is-invalid ~ .invalid-feedback {
-            display: block;
-          }
-
-          /* New Custom Dropdown Styles */
-          .custom-dropdown-container {
-            position: relative;
-            width: 100%;
-            height: 50px; /* Set a fixed height for consistency */
-          }
-
-          .custom-dropdown-toggle {
-            height: 100%;
-            font-family: "Product Sans, sans-serif";
-            font-weight: 400;
-            font-size: 16px;
-            border-radius: 4px;
-            border: 1px solid #D3DBD5;
-            background-color: #FFFFFF;
-            color: #212529;
-            padding: 0 10px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .custom-dropdown-toggle.is-invalid {
-            border-color: #dc3545;
-          }
-
-          .custom-dropdown-toggle .selected-value {
-            line-height: 1.5;
-            flex-grow: 1;
-            padding-right: 1rem;
-          }
-          
-          .custom-dropdown-arrow {
-            font-size: 1rem;
-            color: #6c757d;
-            transition: transform 0.2s ease-in-out;
-          }
-
-          .custom-dropdown-toggle.active .custom-dropdown-arrow {
-            transform: rotate(180deg);
-          }
-
-          .custom-dropdown-menu {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 100%;
-            z-index: 1000;
-            background-color: #fff;
-            border-radius: 4px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-top: 5px;
-            overflow: hidden;
-          }
-
-          .custom-dropdown-item {
-            padding: 10px 15px;
-            cursor: pointer;
-            font-family: "Product Sans, sans-serif";
-            font-weight: 400;
-            font-size: 16px;
-            color: #212529;
-          }
-
-          .custom-dropdown-item:hover {
-            background-color: #f1f1f1;
-          }
-            .drawer {
-  position: fixed;
-  top: 63px;
-  right: 0;
-  width: 600px;
-  height: 100vh;
-  background-color: #fff;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-  z-index: 2000;
-  padding: 30px;
-  overflow-y: auto;
-  border-left: 1px solid #dee2e6;
-  transition: transform 1s ease-in-out, opacity 1s ease-in-out;
-  transform: translateX(100%);
-  opacity: 0;
-  pointer-events: none;
-  visibility: hidden;
-}
-
-.drawer.show {
-  transform: translateX(0%);
-  opacity: 1;
-  pointer-events: auto;
-  visibility: visible;
-}
-        `}</style>
+        .slide-in {
+          position: fixed;
+          top: 0;
+          right: 0;
+          width: 600px;
+          height: 100vh;
+          transition: right 0.4s ease-in-out;
+          z-index: 2000;
+        }
+        .slide-out {
+          position: fixed;
+          top: 0;
+          right: -600px;
+          width: 600px;
+          height: 100vh;
+          transition: right 0.4s ease-in-out;
+          z-index: 2000;
+        }
+        .custom-offcanvas .form-select {
+          font-size: 16px;
+          padding: 4px 22px 5px 10px;
+          height: 34px;
+          line-height: 1.3;
+        }
+        .custom-offcanvas .form-control {
+          font-size: 14px;
+          height: 34px;
+          padding: 4px 10px;
+          line-height: 1.3;
+        }
+        .custom-offcanvas .custom-dropdown-container {
+          height: 32px;
+        }
+        .custom-offcanvas .custom-dropdown-toggle {
+          font-size: 14px;
+          padding: 4px 10px;
+        }
+        .custom-table th, .custom-table td {
+          font-weight: 400;
+          font-size: 16px;
+          color: #212529;
+          white-space: normal;
+        }
+        .flex-grow-1 {
+          overflow-x: auto !important;
+        }
+        .custom-placeholder::placeholder {
+          font-family: 'Product Sans', sans-serif;
+          font-weight: 400;
+          color: #828282;
+        }
+        .form-control:focus {
+          border-color: #CED4DA !important;
+          box-shadow: none !important;
+        }
+        .form-control:valid {
+          border-color: #CED4DA !important;
+          box-shadow: none !important;
+        }
+        .form-control.is-invalid ~ .invalid-feedback {
+          display: block;
+        }
+        .custom-dropdown-container {
+          position: relative;
+          width: 100%;
+          height: 50px;
+        }
+        .custom-dropdown-toggle {
+          height: 100%;
+          font-family: "Product Sans, sans-serif";
+          font-weight: 400;
+          font-size: 16px;
+          border-radius: 4px;
+          border: 1px solid #D3DBD5;
+          background-color: #FFFFFF;
+          color: #212529;
+          padding: 0 10px;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .custom-dropdown-toggle.is-invalid {
+          border-color: #dc3545;
+        }
+        .custom-dropdown-toggle .selected-value {
+          line-height: 1.5;
+          flex-grow: 1;
+          padding-right: 1rem;
+        }
+      `}</style>
+      <ToastContainer />
     </div>
   );
 }

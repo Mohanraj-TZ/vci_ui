@@ -32,6 +32,16 @@ export default function ProductPage() {
   const [importing, setImporting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
 
+  // Add the auth token to Axios headers
+  const authToken = localStorage.getItem('authToken');
+  if (authToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+  } else {
+    console.error("No authentication token found. User is not logged in.");
+    // Optional: Redirect the user to the login page
+    // window.location.href = "/login";
+  }
+
   const downloadPurchaseAndCategoryExcel = (purchaseData, categoryData) => {
     const purchaseSheet = XLSX.utils.json_to_sheet(purchaseData);
     const categorySheet = XLSX.utils.json_to_sheet(categoryData);
@@ -48,7 +58,7 @@ export default function ProductPage() {
     manufacture_no: "",
     firmware_version: "",
     hsn_code: "",
-    sale_status: "Available", // Set default to 'Available'
+    sale_status: "Available",
     test: "",
   });
 
@@ -83,7 +93,7 @@ export default function ProductPage() {
       manufacture_no: "",
       firmware_version: "",
       hsn_code: "",
-      sale_status: "Available", // Set default to 'Available'
+      sale_status: "Available",
       test: "",
     });
     setShowModal(true);
@@ -413,7 +423,7 @@ const handleDownloadSampleExcel = () => {
                   borderColor: "#2E3A59",
                   color: "#fff",
                   padding: "0.25rem 0.5rem",
-                  fontSize: "0.8rem",
+                  fontSize: "0.8rem", 
                   minWidth: "90px",
                   height: "28px",
                 }}
@@ -719,7 +729,6 @@ const handleDownloadSampleExcel = () => {
         <Offcanvas.Body>
           <p>
             Please upload a `.xlsx`, `.xls` file containing columns:{" "}
-            {/* <b>category_id, serial_no, manufacture_no, firmware_version, hsn_code, sale_status, test</b>. */}
           </p>
           <Form.Group controlId="formFile" className="mb-3">
             <Form.Label>Upload Excel File</Form.Label>
@@ -736,5 +745,3 @@ const handleDownloadSampleExcel = () => {
     </div>
   );
 }
-
-

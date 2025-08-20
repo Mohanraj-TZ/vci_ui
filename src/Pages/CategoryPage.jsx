@@ -22,6 +22,21 @@ export default function CategoryPage() {
   const [perPage, setPerPage] = useState(10);
 
   const MySwal = withReactContent(Swal);
+const authToken = localStorage.getItem('authToken');
+if (authToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+} else {
+    console.error("No authentication token found. User is not logged in.");
+}
+    useEffect(() => {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            // If the token is missing, redirect to the login page
+            navigate('/login');
+            toast.error("Please log in to access this page.");
+        }
+        // ... rest of your useEffect logic
+    },);
 
   useEffect(() => {
     fetchCategories();

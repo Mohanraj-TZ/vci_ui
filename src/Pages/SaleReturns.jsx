@@ -17,8 +17,32 @@ export default function SaleReturns() {
 
     const navigate = useNavigate();
 
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            // If no token is found, redirect to login
+            toast.error("Authentication token missing. Please log in again.", { toastId: 'auth-error' });
+            navigate('/login');
+            return {};
+        }
+        return {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        };
+    };
+
     useEffect(() => {
-        axios.get(`${API_BASE_URL}/invoice`)
+        // Check for token at the start
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            toast.error("Please log in to access this page.", { toastId: 'auth-error' });
+            navigate('/login');
+            return;
+        }
+
+        // Fetch invoices
+        axios.get(`${API_BASE_URL}/invoice`, getAuthHeaders())
             .then(res => {
                 const invoiceOptions = res.data.map(item => ({
                     label: item.invoice_no,
@@ -27,14 +51,14 @@ export default function SaleReturns() {
                 setInvoices(invoiceOptions);
             })
             .catch(() => toast.error('Failed to load invoices'));
-    }, []);
+    }, [navigate]);
 
     const handleInvoiceChange = (option) => {
         setSelectedInvoice(option);
         setSerials([]);
         setSaleId(null);
 
-        axios.get(`${API_BASE_URL}/sale-return/invoice/${option.label}`)
+        axios.get(`${API_BASE_URL}/sale-return/invoice/${option.label}`, getAuthHeaders())
             .then(res => {
                 const data = res.data.products.map(item => ({
                     ...item,
@@ -44,15 +68,14 @@ export default function SaleReturns() {
                 setSerials(data);
                 setSaleId(res.data.sale_id);
 
-               setSaleInfo({
-  customer_name: res.data.customer.first_name,
-  batch_name: res.data.batch,
-  category_name: res.data.category,
-  shipment_name: res.data.shipment_name,
-  shipment_date: res.data.shipment_date,
-  delivery_date: res.data.delivery_date,
-});
-
+                setSaleInfo({
+                    customer_name: res.data.customer.first_name,
+                    batch_name: res.data.batch,
+                    category_name: res.data.category,
+                    shipment_name: res.data.shipment_name,
+                    shipment_date: res.data.shipment_date,
+                    delivery_date: res.data.delivery_date,
+                });
             })
             .catch(() => toast.error('No serial numbers found for this invoice'));
     };
@@ -86,10 +109,10 @@ export default function SaleReturns() {
             }))
         };
 
-        axios.post(`${API_BASE_URL}/sale-return-store`, payload)
+        axios.post(`${API_BASE_URL}/sale-return-store`, payload, getAuthHeaders())
             .then(() => {
                 toast.success('Return processed successfully!');
-                    navigate('/salesReturn');
+                navigate('/salesReturn');
                 setSelectedInvoice(null);
                 setSaleId(null);
                 setSerials([]);
@@ -103,11 +126,12 @@ export default function SaleReturns() {
 
     return (
         <div className="container py-4">
-              <div className="d-flex justify-content-between align-items-center mb-4">
-            <h4 className="mb-4 fw-bold text-dark">Sales Return</h4>
-            <Button variant="outline-secondary" onClick={() => navigate('/salesReturn')}>
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <h4 className="mb-4 fw-bold text-dark">Sales Return</h4>
+                <Button variant="outline-secondary" onClick={() => navigate('/salesReturn')}>
                     <i className="bi bi-arrow-left" /> Back
-                  </Button></div>
+                </Button>
+            </div>
             <Card className="shadow-sm border-0">
                 <Card.Body>
                     {/* Top 2-column Layout */}
@@ -137,7 +161,6 @@ export default function SaleReturns() {
                                     placeholder="Write reason if any..."
                                 />
                             </section>
-
                         </Col>
 
                         {/* Right Side: Product Details */}
@@ -154,27 +177,22 @@ export default function SaleReturns() {
                                     }}
                                 >
                                     <Row className="gx-4 gy-2 text-muted">
-                                       <Col md={6}>
-                                    <span className="text-dark fw-semibold">Customer:</span> {saleInfo?.customer_name || ''}
-                                     </Col>
                                         <Col md={6}>
-                                     <span className="text-dark fw-semibold">Batch:</span> {saleInfo?.batch_name || ''}
-                                       </Col>
+                                            <span className="text-dark fw-semibold">Customer:</span> {saleInfo?.customer_name || ''}
+                                        </Col>
+                                        <Col md={6}>
+                                            <span className="text-dark fw-semibold">Batch:</span> {saleInfo?.batch_name || ''}
+                                        </Col>
                                         <Col md={6}><span className="text-dark fw-semibold">Category:</span>{saleInfo?.category_name || ''}</Col>
-                                        {/* <Col md={6}><span className="text-dark fw-semibold">Quantity:</span> 10</Col> */}
-                                        {/* <Col md={6}><span className="text-dark fw-semibold">From Serial:</span> SN1001</Col> */}
-                                   <Col md={6}>
-                                   <span className="text-dark fw-semibold">Shipment Name:</span> {saleInfo?.shipment_name || ''}
-                                   </Col>
-                                        {/* <Col md={6}><span className="text-dark fw-semibold">Product Serial No.:</span> PSN-56789</Col> */}
-                                       <Col md={6}>
-                                  <span className="text-dark fw-semibold">Shipment Date:</span> {saleInfo?.shipment_date || ''}
-                                    </Col>
                                         <Col md={6}>
-                                   <span className="text-dark fw-semibold">Delivery Date:</span> {saleInfo?.delivery_date || ''}
-                                    </Col>
-                                        {/* <Col md={6}><span className="text-dark fw-semibold">Tracking No.:</span> TRK987654321</Col> */}
-                                        {/* <Col md={12}><span className="text-dark fw-semibold">Notes:</span> Package slightly damaged upon return</Col> */}
+                                            <span className="text-dark fw-semibold">Shipment Name:</span> {saleInfo?.shipment_name || ''}
+                                        </Col>
+                                        <Col md={6}>
+                                            <span className="text-dark fw-semibold">Shipment Date:</span> {saleInfo?.shipment_date || ''}
+                                        </Col>
+                                        <Col md={6}>
+                                            <span className="text-dark fw-semibold">Delivery Date:</span> {saleInfo?.delivery_date || ''}
+                                        </Col>
                                     </Row>
                                 </div>
                             </section>

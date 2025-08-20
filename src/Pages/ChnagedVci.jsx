@@ -85,7 +85,7 @@ export default function ChangedVciPage() {
                                     id: item.id,
                                     original_serial_no: item.original_serial_no,
                                     pcb_serial_no: item.pcb_serial_no,
-                                    is_urgent: item.is_urgent === 'Yes', // Correctly check for urgency
+                                    is_urgent: item.is_urgent === 'Yes',
                                 },
                             ],
                         };
@@ -94,7 +94,7 @@ export default function ChangedVciPage() {
                             id: item.id,
                             original_serial_no: item.original_serial_no,
                             pcb_serial_no: item.pcb_serial_no,
-                            is_urgent: item.is_urgent === 'Yes', // Correctly check for urgency
+                            is_urgent: item.is_urgent === 'Yes',
                         });
                         groupedData[groupKey].quantity += 1;
                     }
@@ -132,6 +132,10 @@ export default function ChangedVciPage() {
         } catch {
             toast.error("Failed to delete VCI entry.");
         }
+    };
+
+    const handleEdit = (id) => {
+        navigate(`/edit-urgent-vci/${id}`);
     };
 
     const handleShowModal = (data) => {
@@ -305,7 +309,7 @@ export default function ChangedVciPage() {
                                             <Button
                                                 variant=""
                                                 size="sm"
-                                                onClick={() => handleEdit(vci)}
+                                                onClick={() => handleEdit(vci.items[0].id)}
                                                 className="me-1"
                                                 style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
                                             >
@@ -358,14 +362,14 @@ export default function ChangedVciPage() {
                                     {item.is_urgent && (
                                         <span className="text-danger fw-semibold ms-2">(Urgent)</span>
                                     )}
-                                    <Button
+                                    {/* <Button
                                         variant="danger"
                                         size="sm"
                                         className="ms-2"
                                         onClick={() => handleDelete(item.id)}
                                     >
                                         <i className="bi bi-trash"></i>
-                                    </Button>
+                                    </Button> */}
                                 </li>
                             ))}
                         </ul>

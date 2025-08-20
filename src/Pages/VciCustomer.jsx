@@ -63,6 +63,13 @@ export default function VciCustomer() {
 
     const tableRef = useRef(null);
 
+const authToken = localStorage.getItem('authToken');
+if (authToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+} else {
+    // Handle cases where the user is not authenticated (e.g., redirect to login)
+    console.error("No authentication token found. User is not logged in.");
+}
 
     const loadInitialData = async () => {
         setLoading(true);
@@ -83,8 +90,16 @@ export default function VciCustomer() {
             setLoading(false);
         }
     };
-
-    // Then your effect just calls it
+    
+    useEffect(() => {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            // If the token is missing, redirect to the login page
+            navigate('/login');
+            toast.error("Please log in to access this page.");
+        }
+        // ... rest of your useEffect logic
+    },);
     useEffect(() => {
         loadInitialData();
     }, []);

@@ -16,413 +16,405 @@ import { API_BASE_URL } from "../api";
 import Breadcrumb from "./Components/Breadcrumb";
 import Pagination from "./Components/Pagination";
 import Search from "./Components/Search";
+// Import useNavigate to handle redirection
+import { useNavigate } from "react-router-dom";
 
 
 const getBlueBorderStyles = (value, isInvalid) => {
-  if (isInvalid) {
-    return { borderColor: "none" };
-  }
-  if (value) {
-    return { borderColor: "none" };
-  }
-  return {};
+    if (isInvalid) {
+        return { borderColor: "none" };
+    }
+    if (value) {
+        return { borderColor: "none" };
+    }
+    return {};
 };
 
 const getTableInputStyles = (value, isInvalid) => {
-  if (isInvalid) {
-    return { borderColor: "#dc3545" };
-  }
-  if (value) {
-    return { borderColor: "none" };
-  }
-  return {};
+    if (isInvalid) {
+        return { borderColor: "#dc3545" };
+    }
+    if (value) {
+        return { borderColor: "none" };
+    }
+    return {};
 };
 
 export default function ReturnSparePartsPage() {
-  const [vendors, setVendors] = useState([]);
-  const [batches, setBatches] = useState([]);
-  const [purchases, setPurchases] = useState([]);
-  const [availableSpareparts, setAvailableSpareparts] = useState([]);
-  const [returns, setReturns] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const MySwal = withReactContent(Swal);
-  const [sparePartsRows, setSparePartsRows] = useState([{ sparepart_id: "", quantity: "" }]);
-  const [returnDate, setReturnDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
-  // const [returnDate, setReturnDate] = useState("");
-  const [showReturnCalendar, setShowReturnCalendar] = useState(false);
-  const [sortField, setSortField] = useState("asc");
-  const [sortDirection, setSortDirection] = useState("desc");
-
-  const dateInputRef = useRef();
-  const [editingReturn, setEditingReturn] = useState(null);
-
-  const [formData, setFormData] = useState({
-    vendor_id: "",
-    batch_id: "",
-    invoiceNo: "",
-    notes: ""
-  });
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
-  const [search, setSearch] = useState("");
-  const [invoiceSpareparts, setInvoiceSpareparts] = useState([]);
-  const [formErrors, setFormErrors] = useState({});
-  const tableRef = useRef(null);
-  const dataTableInstance = useRef(null);
-
-  const fetchAllData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [vendorsRes, batchesRes, purchasesRes, sparepartsRes, returnsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/vendors`, { headers: { Accept: "application/json" } }),
-        axios.get(`${API_BASE_URL}/batches`, { headers: { Accept: "application/json" } }),
-        axios.get(`${API_BASE_URL}/sparepart-purchases`, { headers: { Accept: "application/json" } }),
-        axios.get(`${API_BASE_URL}/spareparts`, { headers: { Accept: "application/json" } }),
-        axios.get(`${API_BASE_URL}/sparepart-returns`, { headers: { Accept: "application/json" } }),
-      ]);
-
-      setVendors(vendorsRes.data.data ?? vendorsRes.data ?? []);
-      setBatches(batchesRes.data.batches ?? batchesRes.data.data ?? batchesRes.data ?? []);
-      setPurchases(purchasesRes.data.data ?? purchasesRes.data ?? []);
-      setAvailableSpareparts(sparepartsRes.data.data ?? sparepartsRes.data ?? []);
-      setReturns(returnsRes.data.data ?? returnsRes.data ?? []);
-
-    } catch (err) {
-      console.error("Error loading initial data:", err);
-      toast.error("Failed to load data. Please check the server connection.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
-
-  // useEffect(() => {
-  //   if (dataTableInstance.current) {
-  //     dataTableInstance.current.destroy();
-  //     dataTableInstance.current = null;
-  //   }
-
-  //   if (!loading && returns.length > 0 && tableRef.current) {
-  //     dataTableInstance.current = $(tableRef.current).DataTable({
-  //       ordering: true,
-  //       paging: true,
-  //       searching: true,
-  //       lengthChange: true,
-  //       columnDefs: [{ targets: 0, className: "text-center" }],
-  //     });
-  //   }
-  // }, [returns, loading]);
-
-  useEffect(() => {
-    if (formData.invoiceNo) {
-      const selectedPurchase = purchases.find(p => String(p.invoice_no) === String(formData.invoiceNo));
-      if (selectedPurchase && selectedPurchase.items) {
-        const sparepartItems = selectedPurchase.items.map(item => availableSpareparts.find(sp => sp.id === item.sparepart_id));
-        setInvoiceSpareparts(sparepartItems.filter(item => item !== undefined));
-      } else {
-        setInvoiceSpareparts([]);
-      }
-    } else {
-      setInvoiceSpareparts([]);
-    }
-  }, [formData.invoiceNo, purchases, availableSpareparts]);
-
-  const handleAddRow = () => {
-    setSparePartsRows((rows) => [...rows, { sparepart_id: "", quantity: "" }]);
-  };
-
-  const handleRemoveRow = (index) => {
-    setSparePartsRows((rows) => rows.filter((_, i) => i !== index));
-    setFormErrors((prevErrors) => {
-      const newErrors = { ...prevErrors };
-      delete newErrors[`sparepart-${index}`];
-      delete newErrors[`quantity-${index}`];
-      return newErrors;
+    const [vendors, setVendors] = useState([]);
+    const [batches, setBatches] = useState([]);
+    const [purchases, setPurchases] = useState([]);
+    const [availableSpareparts, setAvailableSpareparts] = useState([]);
+    const [returns, setReturns] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const MySwal = withReactContent(Swal);
+    const [sparePartsRows, setSparePartsRows] = useState([{ sparepart_id: "", quantity: "" }]);
+    const [returnDate, setReturnDate] = useState(() => {
+        const today = new Date();
+        return today.toISOString().split("T")[0];
     });
-  };
+    const [showReturnCalendar, setShowReturnCalendar] = useState(false);
+    const [sortField, setSortField] = useState("asc");
+    const [sortDirection, setSortDirection] = useState("desc");
 
-  const handleRowChange = (index, field, value) => {
-    const updatedRows = [...sparePartsRows];
-    updatedRows[index][field] = value;
+    const dateInputRef = useRef();
+    const [editingReturn, setEditingReturn] = useState(null);
 
-    // Only live validation for quantity being negative or zero
-    if (field === "quantity") {
-      const quantity = parseInt(value, 10);
-
-      if (!value || isNaN(quantity) || quantity < 1) {
-        setFormErrors((prev) => ({
-          ...prev,
-          [`quantity-${index}`]: "Quantity must be a positive number.",
-        }));
-      } else {
-        // Clear the error if the value is valid
-        setFormErrors((prev) => {
-          const newErrors = { ...prev };
-          delete newErrors[`quantity-${index}`];
-          return newErrors;
-        });
-      }
-    }
-
-    setSparePartsRows(updatedRows);
-  };
+    const [formData, setFormData] = useState({
+        vendor_id: "",
+        batch_id: "",
+        invoiceNo: "",
+        notes: ""
+    });
+    const [page, setPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+    const [search, setSearch] = useState("");
+    const [invoiceSpareparts, setInvoiceSpareparts] = useState([]);
+    const [formErrors, setFormErrors] = useState({});
+    const tableRef = useRef(null);
+    const dataTableInstance = useRef(null);
+    const navigate = useNavigate(); // Initialize useNavigate
 
 
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setFormErrors((prev) => ({ ...prev, [name]: "" }));
-  };
-
-  const handleReturnDateChange = (e) => {
-    const { value } = e.target;
-    setReturnDate(value);
-    setFormErrors((prev) => ({ ...prev, return_date: "" }));
-  };
-
-  const validateForm = (payload, items) => {
-    let errors = {};
-
-    if (!payload.vendor_id) {
-      errors.vendor_id = "Vendor is required.";
-    }
-
-    if (!payload.invoice_no) {
-      errors.invoiceNo = "Invoice No. is required.";
-    }
-
-    if (!payload.return_date) {
-      errors.return_date = "Return Date is required.";
-    }
-
-    if (!payload.batch_id) {
-      errors.batch_id = "Batch is required.";
-    }
-
-    if (
-      items.length === 0 ||
-      items.every(item => !item.sparepart_id || !parseInt(item.quantity))
-    ) {
-      errors.items = "Please add at least one spare part with a valid quantity.";
-    } else {
-      items.forEach((item, index) => {
-        const returnedQuantity = parseInt(item.quantity, 10);
-
-        // Get purchased quantity for this spare part from the selected invoice
-        const selectedPurchase = purchases.find(p => String(p.invoice_no) === String(payload.invoice_no));
-        let purchasedQty = 0;
-        if (selectedPurchase) {
-          const purchasedItem = selectedPurchase.items.find(pi => String(pi.sparepart_id) === String(item.sparepart_id));
-          if (purchasedItem) {
-            purchasedQty = parseInt(purchasedItem.quantity, 10);
-          }
-        }
-
-        // Get available quantity from global spareparts list
-        const sparepart = availableSpareparts.find(sp => String(sp.id) === String(item.sparepart_id));
-        const availableQty = sparepart ? parseInt(sparepart.quantity, 10) : 0;
-
-        if (!item.sparepart_id) {
-          errors[`sparepart-${index}`] = "Spare part is required.";
-        }
-
-        if (!item.quantity || isNaN(returnedQuantity) || returnedQuantity < 1) {
-          errors[`quantity-${index}`] = "Quantity must be a positive number.";
+    // Add the useEffect hook to handle authentication
+    useEffect(() => {
+        const authToken = localStorage.getItem('authToken');
+        if (authToken) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
         } else {
-          if (returnedQuantity > purchasedQty) {
-            errors[`quantity-${index}`] = `Return quantity (${returnedQuantity}) cannot exceed purchased quantity (${purchasedQty}).`;
-          } else if (returnedQuantity > availableQty) {
-            errors[`quantity-${index}`] = `Return quantity (${returnedQuantity}) cannot exceed current available quantity (${availableQty}).`;
-          }
+            // Redirect to login page if no token is found
+            console.error("No authentication token found. Redirecting to login.");
+            navigate('/login');
+            toast.error("Please log in to access this page.");
         }
-      });
-    }
+    }, [navigate]);
 
-    setFormErrors(errors);
+    const fetchAllData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [vendorsRes, batchesRes, purchasesRes, sparepartsRes, returnsRes] = await Promise.all([
+                axios.get(`${API_BASE_URL}/vendors`, { headers: { Accept: "application/json" } }),
+                axios.get(`${API_BASE_URL}/batches`, { headers: { Accept: "application/json" } }),
+                axios.get(`${API_BASE_URL}/sparepart-purchases`, { headers: { Accept: "application/json" } }),
+                axios.get(`${API_BASE_URL}/spareparts`, { headers: { Accept: "application/json" } }),
+                axios.get(`${API_BASE_URL}/sparepart-returns`, { headers: { Accept: "application/json" } }),
+            ]);
 
-    if (Object.keys(errors).length > 0) {
-      const firstErrorMsg = errors[Object.keys(errors)[0]];
-      toast.error(firstErrorMsg || "Please correct the errors in the form.");
-    }
+            setVendors(vendorsRes.data.data ?? vendorsRes.data ?? []);
+            setBatches(batchesRes.data.batches ?? batchesRes.data.data ?? batchesRes.data ?? []);
+            setPurchases(purchasesRes.data.data ?? purchasesRes.data ?? []);
+            setAvailableSpareparts(sparepartsRes.data.data ?? sparepartsRes.data ?? []);
+            setReturns(returnsRes.data.data ?? returnsRes.data ?? []);
 
-    return Object.keys(errors).length === 0;
-  };
+        } catch (err) {
+            console.error("Error loading initial data:", err);
+            toast.error("Failed to load data. Please check the server connection.");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    useEffect(() => {
+        fetchAllData();
+    }, [fetchAllData]);
 
-    const items = sparePartsRows
-      .map((row) => ({
-        sparepart_id: row.sparepart_id,
-        quantity: parseInt(row.quantity, 10),
-      }))
-      .filter((i) => i.sparepart_id && i.quantity > 0);
+    useEffect(() => {
+        if (formData.invoiceNo) {
+            const selectedPurchase = purchases.find(p => String(p.invoice_no) === String(formData.invoiceNo));
+            if (selectedPurchase && selectedPurchase.items) {
+                const sparepartItems = selectedPurchase.items.map(item => availableSpareparts.find(sp => sp.id === item.sparepart_id));
+                setInvoiceSpareparts(sparepartItems.filter(item => item !== undefined));
+            } else {
+                setInvoiceSpareparts([]);
+            }
+        } else {
+            setInvoiceSpareparts([]);
+        }
+    }, [formData.invoiceNo, purchases, availableSpareparts]);
 
-    const payload = {
-      vendor_id: formData.vendor_id,
-      invoice_no: formData.invoiceNo,
-      return_date: returnDate,
-      batch_id: formData.batch_id,
-      notes: formData.notes,
-      items,
+    const handleAddRow = () => {
+        setSparePartsRows((rows) => [...rows, { sparepart_id: "", quantity: "" }]);
     };
 
-    const isValid = validateForm(payload, items);
-    if (!isValid) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      if (editingReturn && editingReturn.id) {
-        await axios.put(`${API_BASE_URL}/sparepart-returns/${editingReturn.id}`, payload, {
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
+    const handleRemoveRow = (index) => {
+        setSparePartsRows((rows) => rows.filter((_, i) => i !== index));
+        setFormErrors((prevErrors) => {
+            const newErrors = { ...prevErrors };
+            delete newErrors[`sparepart-${index}`];
+            delete newErrors[`quantity-${index}`];
+            return newErrors;
         });
-        toast.success("Return updated successfully");
-      } else {
-        await axios.post(`${API_BASE_URL}/sparepart-returns`, payload, {
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-        });
-        toast.success("Return added successfully");
-      }
+    };
 
-      setFormData({ vendor_id: "", invoiceNo: "", batch_id: "", notes: "" });
-      setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
-      setEditingReturn(null);
-      setShowForm(false);
-      await fetchAllData();
-    } catch (error) {
-      console.error("Error saving return:", error);
-      toast.error("Failed to save return");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const handleRowChange = (index, field, value) => {
+        const updatedRows = [...sparePartsRows];
+        updatedRows[index][field] = value;
 
-  const getVendorNameById = (id) => {
-    const vendor = vendors.find((v) => String(v.id) === String(id));
-    return vendor ?
-      `${vendor.first_name ?? ""} ${vendor.last_name ?? ""}`.trim() :
-      `ID: ${id}`;
-  };
-  const handleDelete = async (id) => {
-    const result = await MySwal.fire({
-      title: "Are you sure?",
-      text: "Do you really want to delete this return?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#2FA64F",
-      confirmButtonText: "Yes, delete it!",
-      customClass: {
-        popup: "custom-compact"
-      }
-    });
+        if (field === "quantity") {
+            const quantity = parseInt(value, 10);
 
-    if (!result.isConfirmed) return;
-
-    try {
-      if (dataTableInstance.current) {
-        dataTableInstance.current.destroy();
-        dataTableInstance.current = null;
-      }
-
-      const {
-        data
-      } = await axios.delete(`${API_BASE_URL}/sparepart-returns/${id}`, {
-        headers: {
-          Accept: "application/json"
-        },
-      });
-
-      if (data?.success) {
-        const updatedReturns = returns.filter((r) => String(r.id) !== String(id));
-        setReturns(updatedReturns);
-
-        if (dataTableInstance.current) {
-          dataTableInstance.current.destroy();
-          dataTableInstance.current = null;
+            if (!value || isNaN(quantity) || quantity < 1) {
+                setFormErrors((prev) => ({
+                    ...prev,
+                    [`quantity-${index}`]: "Quantity must be a positive number.",
+                }));
+            } else {
+                setFormErrors((prev) => {
+                    const newErrors = { ...prev };
+                    delete newErrors[`quantity-${index}`];
+                    return newErrors;
+                });
+            }
         }
 
-        setSparePartsRows(updatedReturns);
+        setSparePartsRows(updatedRows);
+    };
 
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormErrors((prev) => ({ ...prev, [name]: "" }));
+    };
 
-        setTimeout(() => {
-          if (updatedReturns.length && tableRef.current) {
-            dataTableInstance.current = $(tableRef.current).DataTable({
-              ordering: true,
-              paging: true,
-              searching: true,
-              lengthChange: true,
-              columnDefs: [{
-                targets: 0,
-                className: "text-center"
-              }],
+    const handleReturnDateChange = (e) => {
+        const { value } = e.target;
+        setReturnDate(value);
+        setFormErrors((prev) => ({ ...prev, return_date: "" }));
+    };
+
+    const validateForm = (payload, items) => {
+        let errors = {};
+
+        if (!payload.vendor_id) {
+            errors.vendor_id = "Vendor is required.";
+        }
+
+        if (!payload.invoice_no) {
+            errors.invoiceNo = "Invoice No. is required.";
+        }
+
+        if (!payload.return_date) {
+            errors.return_date = "Return Date is required.";
+        }
+
+        if (!payload.batch_id) {
+            errors.batch_id = "Batch is required.";
+        }
+
+        if (
+            items.length === 0 ||
+            items.every(item => !item.sparepart_id || !parseInt(item.quantity))
+        ) {
+            errors.items = "Please add at least one spare part with a valid quantity.";
+        } else {
+            items.forEach((item, index) => {
+                const returnedQuantity = parseInt(item.quantity, 10);
+
+                const selectedPurchase = purchases.find(p => String(p.invoice_no) === String(payload.invoice_no));
+                let purchasedQty = 0;
+                if (selectedPurchase) {
+                    const purchasedItem = selectedPurchase.items.find(pi => String(pi.sparepart_id) === String(item.sparepart_id));
+                    if (purchasedItem) {
+                        purchasedQty = parseInt(purchasedItem.quantity, 10);
+                    }
+                }
+
+                const sparepart = availableSpareparts.find(sp => String(sp.id) === String(item.sparepart_id));
+                const availableQty = sparepart ? parseInt(sparepart.quantity, 10) : 0;
+
+                if (!item.sparepart_id) {
+                    errors[`sparepart-${index}`] = "Spare part is required.";
+                }
+
+                if (!item.quantity || isNaN(returnedQuantity) || returnedQuantity < 1) {
+                    errors[`quantity-${index}`] = "Quantity must be a positive number.";
+                } else {
+                    if (returnedQuantity > purchasedQty) {
+                        errors[`quantity-${index}`] = `Return quantity (${returnedQuantity}) cannot exceed purchased quantity (${purchasedQty}).`;
+                    } else if (returnedQuantity > availableQty) {
+                        errors[`quantity-${index}`] = `Return quantity (${returnedQuantity}) cannot exceed current available quantity (${availableQty}).`;
+                    }
+                }
             });
-          }
-        }, 0);
+        }
+
+        setFormErrors(errors);
+
+        if (Object.keys(errors).length > 0) {
+            const firstErrorMsg = errors[Object.keys(errors)[0]];
+            toast.error(firstErrorMsg || "Please correct the errors in the form.");
+        }
+
+        return Object.keys(errors).length === 0;
+    };
+
+    const handleFormSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        const items = sparePartsRows
+            .map((row) => ({
+                sparepart_id: row.sparepart_id,
+                quantity: parseInt(row.quantity, 10),
+            }))
+            .filter((i) => i.sparepart_id && i.quantity > 0);
+
+        const payload = {
+            vendor_id: formData.vendor_id,
+            invoice_no: formData.invoiceNo,
+            return_date: returnDate,
+            batch_id: formData.batch_id,
+            notes: formData.notes,
+            items,
+        };
+
+        const isValid = validateForm(payload, items);
+        if (!isValid) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            if (editingReturn && editingReturn.id) {
+                await axios.put(`${API_BASE_URL}/sparepart-returns/${editingReturn.id}`, payload, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                    },
+                });
+                toast.success("Return updated successfully");
+            } else {
+                await axios.post(`${API_BASE_URL}/sparepart-returns`, payload, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                    },
+                });
+                toast.success("Return added successfully");
+            }
+
+            setFormData({ vendor_id: "", invoiceNo: "", batch_id: "", notes: "" });
+            setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
+            setEditingReturn(null);
+            setShowForm(false);
+            await fetchAllData();
+        } catch (error) {
+            console.error("Error saving return:", error);
+            toast.error("Failed to save return");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getVendorNameById = (id) => {
+        const vendor = vendors.find((v) => String(v.id) === String(id));
+        return vendor ?
+            `${vendor.first_name ?? ""} ${vendor.last_name ?? ""}`.trim() :
+            `ID: ${id}`;
+    };
+    const handleDelete = async (id) => {
+        const result = await MySwal.fire({
+            title: "Are you sure?",
+            text: "Do you really want to delete this return?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#2FA64F",
+            confirmButtonText: "Yes, delete it!",
+            customClass: {
+                popup: "custom-compact"
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
+        try {
+            if (dataTableInstance.current) {
+                dataTableInstance.current.destroy();
+                dataTableInstance.current = null;
+            }
+
+            const {
+                data
+            } = await axios.delete(`${API_BASE_URL}/sparepart-returns/${id}`, {
+                headers: {
+                    Accept: "application/json"
+                },
+            });
+
+            if (data?.success) {
+                const updatedReturns = returns.filter((r) => String(r.id) !== String(id));
+                setReturns(updatedReturns);
+
+                if (dataTableInstance.current) {
+                    dataTableInstance.current.destroy();
+                    dataTableInstance.current = null;
+                }
+
+                setSparePartsRows(updatedReturns);
 
 
-        toast.success("Purchase deleted successfully!");
-      } else {
-        toast.error(data?.message || "Failed to delete.");
-      }
-    } catch (err) {
-      console.error("Delete Error:", err);
-      toast.error("Failed to delete purchase. Check logs.");
-    }
-  };
-  const handleShowForm = (returnedItem = null) => {
-    setEditingReturn(returnedItem);
-    setFormErrors({});
+                setTimeout(() => {
+                    if (updatedReturns.length && tableRef.current) {
+                        dataTableInstance.current = $(tableRef.current).DataTable({
+                            ordering: true,
+                            paging: true,
+                            searching: true,
+                            lengthChange: true,
+                            columnDefs: [{
+                                targets: 0,
+                                className: "text-center"
+                            }],
+                        });
+                    }
+                }, 0);
 
-    if (returnedItem) {
-      // Find the corresponding purchase to get the correct spare parts list
-      const purchase = purchases.find(p => String(p.invoice_no) === String(returnedItem.invoice_no));
-      let sparepartOptions = [];
-      if (purchase) {
-        sparepartOptions = purchase.items.map(item => availableSpareparts.find(sp => sp.id === item.sparepart_id)).filter(Boolean);
-      }
-      setInvoiceSpareparts(sparepartOptions);
 
-      setSparePartsRows(
-        returnedItem.items && returnedItem.items.length > 0
-          ? returnedItem.items.map((item) => ({
-            sparepart_id: String(item.sparepart_id),
-            quantity: String(item.quantity),
-          }))
-          : [{ sparepart_id: "", quantity: "" }]
-      );
-      setReturnDate(returnedItem.return_date);
-      setFormData({
-        vendor_id: String(returnedItem.vendor_id),
-        batch_id: String(returnedItem.batch_id),
-        invoiceNo: returnedItem.invoice_no,
-        notes: returnedItem.notes || ""
-      });
-    } else {
-      setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
-      setReturnDate(new Date().toISOString().split("T")[0]);
-      setFormData({ vendor_id: "", invoiceNo: "", batch_id: "", notes: "" });
-      setInvoiceSpareparts([]); // Clear spare part options for a new form
-    }
-    setShowForm(true);
-  };
+                toast.success("Purchase deleted successfully!");
+            } else {
+                toast.error(data?.message || "Failed to delete.");
+            }
+        } catch (err) {
+            console.error("Delete Error:", err);
+            toast.error("Failed to delete purchase. Check logs.");
+        }
+    };
+    const handleShowForm = (returnedItem = null) => {
+        setEditingReturn(returnedItem);
+        setFormErrors({});
+
+        if (returnedItem) {
+            const purchase = purchases.find(p => String(p.invoice_no) === String(returnedItem.invoice_no));
+            let sparepartOptions = [];
+            if (purchase) {
+                sparepartOptions = purchase.items.map(item => availableSpareparts.find(sp => sp.id === item.sparepart_id)).filter(Boolean);
+            }
+            setInvoiceSpareparts(sparepartOptions);
+
+            setSparePartsRows(
+                returnedItem.items && returnedItem.items.length > 0
+                    ? returnedItem.items.map((item) => ({
+                        sparepart_id: String(item.sparepart_id),
+                        quantity: String(item.quantity),
+                    }))
+                    : [{ sparepart_id: "", quantity: "" }]
+            );
+            setReturnDate(returnedItem.return_date);
+            setFormData({
+                vendor_id: String(returnedItem.vendor_id),
+                batch_id: String(returnedItem.batch_id),
+                invoiceNo: returnedItem.invoice_no,
+                notes: returnedItem.notes || ""
+            });
+        } else {
+            setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
+            setReturnDate(new Date().toISOString().split("T")[0]);
+            setFormData({ vendor_id: "", invoiceNo: "", batch_id: "", notes: "" });
+            setInvoiceSpareparts([]);
+        }
+        setShowForm(true);
+    };
   const handleSort = (field) => {
     if (sortField === field) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));

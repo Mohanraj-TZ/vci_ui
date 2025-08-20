@@ -47,7 +47,8 @@ import ServiceList from './Pages/ServiceList';
     import EditService from './Pages/EditService';
 import TrackingPage from "./Pages/TrackingPage";
 import UrgentVci from './Pages/UrgentVci';
-import ChangedVciPage from "./Pages/ChnagedVci"; // adjust path if needed
+import ChangedVciPage from "./Pages/ChnagedVci"; 
+import EditUrgentVci from "./Pages/EditUrgentVci"; 
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('authToken'));
@@ -149,6 +150,7 @@ export default function App() {
 <Route path="/urgent-vci-list" element={<UrgentVciListPage />} />
 
       <Route path="/changedvci" element={<ChangedVciPage />} />
+        <Route path="/changed-vci/edit/:id" element={<EditUrgentVci />} />
 
         </Route>
 

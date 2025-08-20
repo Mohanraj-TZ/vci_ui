@@ -19,15 +19,55 @@ export default function EditPurchasePage() {
   const [dropdowns, setDropdowns] = useState({ vendors: [], categories: [] });
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      // If no token is found, redirect to login
+      toast.error("Authentication token missing. Please log in again.", { toastId: 'auth-error' });
+      navigate('/login');
+      return {};
+    }
+    return {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+  };
+  
+  // Fetch dropdowns (vendors & categories) with authentication
+  const fetchDropdownData = async () => {
+    try {
+      // Corrected: Passing authentication headers to the axios.get call
+      const res = await axios.get(`${API_BASE_URL}/form-dropdowns`, getAuthHeaders());
+      setDropdowns(res.data.data);
+    } catch (err) {
+      console.error('Failed to load dropdowns:', err);
+      toast.error(err.response?.data?.message || 'Failed to load dropdowns');
+      if (err.response?.status === 401) {
+        navigate('/login');
+      }
+    }
+  };
+
 
   useEffect(() => {
-    fetchDropdownData();
-    axios.get(`${API_BASE_URL}/purchase/${id}/edit`)
-      .then(res => {
+    // Check for token at the start
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error("Please log in to access this page.", { toastId: 'auth-error' });
+      navigate('/login');
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        await fetchDropdownData();
+        // Corrected: Passing authentication headers to the axios.get call
+        const res = await axios.get(`${API_BASE_URL}/purchase/${id}/edit`, getAuthHeaders());
         if (res.data.status) {
           setPurchase(res.data.data.purchase);
   
-          // ✅ Convert Laravel response to serials list for UI
+          // Convert Laravel response to serials list for UI
           const allSerials = [];
           (res.data.data.categories || []).forEach(cat => {
             cat.serials.forEach(s => {
@@ -46,28 +86,18 @@ export default function EditPurchasePage() {
           setError('Purchase not found');
         }
         setLoading(false);
-      })
-      .catch(() => {
+      } catch (err) {
+        console.error('Error fetching data:', err);
         setError('Error fetching data');
         setLoading(false);
-      });
-  }, [id]);
+        if (err.response?.status === 401) {
+          navigate('/login');
+        }
+      }
+    };
+    fetchData();
+  }, [id, navigate]);
   
-  
-
-  const fetchDropdownData = async () => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/form-dropdowns`);
-      const data = res.data.data || {};
-      setDropdowns({
-        vendors: data.vendors || [],
-        categories: data.categories || [],
-      });
-    } catch (err) {
-      console.error('Failed to load dropdowns:', err.response?.data || err.message);
-    }
-  };
-
   const handleInputChange = (index, field, value) => {
     setSerials(prev => {
       const updated = [...prev];
@@ -113,13 +143,14 @@ export default function EditPurchasePage() {
     }
   
     try {
-      const res = await axios.post(`${API_BASE_URL}/check-serials`, { serials: uniqueEntries });
+      // Corrected: Passing authentication headers to the axios.post call
+      const res = await axios.post(`${API_BASE_URL}/check-serials`, { serials: uniqueEntries }, getAuthHeaders());
       if (res.data.status && res.data.duplicates?.length > 0) {
         toast.error(`These serials already exist: ${res.data.duplicates.join(', ')}`);
         return;
       }
   
-      // ✅ Assign category info
+      // Assign category info
       const categoryObj = dropdowns.categories.find(c => c.id === parseInt(selectedCategoryFilter));
   
       const newEntries = uniqueEntries.map(sn => ({
@@ -133,24 +164,28 @@ export default function EditPurchasePage() {
       setSerials(prev => [...prev, ...newEntries]);
       setNewSerialsInput('');
       toast.success(`${newEntries.length} serial(s) added to category "${categoryObj.category}".`);
-    } catch {
-      toast.error('Failed to validate serials. Please try again.');
+    } catch (err) {
+      console.error('Failed to validate serials:', err);
+      toast.error(err.response?.data?.message || 'Failed to validate serials. Please try again.');
+      if (err.response?.status === 401) {
+        navigate('/login');
+      }
     }
   };
   
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!purchase) return;
   
-    // ✅ Group serials by category
+    // Group serials by category
     const grouped = {};
     serials.forEach(s => {
       if (!grouped[s.category_id]) grouped[s.category_id] = [];
       grouped[s.category_id].push(s.serial_no);
     });
   
-    // ✅ Build from_serial / to_serial per category
+    // Build from_serial / to_serial per category
     const categoriesPayload = Object.keys(grouped).map(catId => {
       const sorted = grouped[catId].sort();
       return {
@@ -167,19 +202,23 @@ export default function EditPurchasePage() {
       categories: categoriesPayload
     };
   
-    axios.put(`${API_BASE_URL}/purchase/${id}`, payload)
-      .then(res => {
-        if (res.data.status) {
-          toast.success('Updated successfully!');
-          setTimeout(() => navigate('/purchaseOrder'), 1000);
-        } else {
-          toast.error(res.data.message || 'Update failed');
-        }
-      })
-      .catch(err => {
-        const errorData = err.response?.data || {};
-        toast.error(errorData.message || 'Something went wrong');
-      });
+    try {
+      // Corrected: Passing authentication headers to the axios.put call
+      const res = await axios.put(`${API_BASE_URL}/purchase/${id}`, payload, getAuthHeaders());
+      if (res.data.status) {
+        toast.success('Updated successfully!');
+        setTimeout(() => navigate('/purchaseOrder'), 1000);
+      } else {
+        toast.error(res.data.message || 'Update failed');
+      }
+    } catch (err) {
+      console.error('Update failed:', err);
+      const errorData = err.response?.data || {};
+      toast.error(errorData.message || 'Something went wrong');
+      if (err.response?.status === 401) {
+        navigate('/login');
+      }
+    }
   };
   
 

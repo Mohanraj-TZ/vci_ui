@@ -11,6 +11,7 @@ import Pagination from "./Components/Pagination";
 import Search from "./Components/Search";
 import ActionButtons from "./Components/ActionButtons";
 import { useLocation } from "react-router-dom";
+import ViewServiceModal from "./ViewServiceModal";
 
 const RepairModal = ({ show, onHide, onRepair, spareParts, selectedVci }) => {
     const [challanNo, setChallanNo] = useState("");
@@ -273,6 +274,11 @@ export default function ServiceVciListPage() {
     const [showRepairModal, setShowRepairModal] = useState(false);
     const [spareParts, setSpareParts] = useState([]);
     const [selectedVci, setSelectedVci] = useState(null);
+
+      // const [showModal, setShowModal] = useState(false);
+  // const [serviceDetails, setServiceDetails] = useState(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [modalChallanNo, setModalChallanNo] = useState(null);
 
 const fetchServices = () => {
   setLoading(true);
@@ -556,6 +562,16 @@ await axios.put(`${API_BASE_URL}/urgentvci/${itemId}`, { is_urgent: newUrgentSta
                                 >
                                     Actions
                                 </th>
+
+                                   <th
+                  style={{
+                    width: "140px",
+                    backgroundColor: "#2E3A59",
+                    color: "white",
+                  }}
+                >
+                  Delivery Challan
+                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -597,6 +613,42 @@ await axios.put(`${API_BASE_URL}/urgentvci/${itemId}`, { is_urgent: newUrgentSta
                                                 urgentStatus={item.urgent}
                                             />
                                         </td>
+
+                                        
+                    <td style={{ textAlign: "center" }}>
+                      <Button
+                        variant=""
+                        size="sm"
+                        onClick={() =>
+                          window.open(`${API_BASE_URL}/delivery-challan/${item.challan_no}`, "_blank")
+                        }
+                        style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
+                      >
+                        <i className="bi bi-file-earmark-pdf-fill me-1"></i>
+                      </Button>
+
+                      {/* <Button
+  variant="info"
+  size="sm"
+  onClick={() => handleView(item.challan_no)}  // ✅ Use item
+>
+  View
+</Button> */}
+                      <Button
+                        variant=""
+                        size="sm"
+                        onClick={() => {
+                          setModalChallanNo(item.challan_no); // Pass the challan no
+                          setShowViewModal(true);              // Show modal
+                        }}
+                         style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
+                      >
+                         <i className="bi bi-file-earmark-pdf"></i>
+                      </Button>
+                    </td>
+
+
+                                        
                                     </tr>
                                 ))
                             )}
@@ -618,6 +670,13 @@ await axios.put(`${API_BASE_URL}/urgentvci/${itemId}`, { is_urgent: newUrgentSta
                 spareParts={spareParts}
                 selectedVci={selectedVci}
             />
+
+                  <ViewServiceModal
+        show={showViewModal}
+        onHide={() => setShowViewModal(false)}
+        challanNo={modalChallanNo}
+      />
+
         </div>
     );
 }

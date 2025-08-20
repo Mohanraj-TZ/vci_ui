@@ -249,6 +249,48 @@ export default function Sidebar({ collapsed }) {
             )}
           </a>
 
+          <a
+                    href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleLinkClick("purchaseDamage");
+            }}
+            className="d-flex align-items-center"
+            style={{
+              backgroundColor: isActive("purchaseDamage") ? "#278C582E" : "transparent",
+              borderRadius: "8px",
+              padding: "12px",
+              textDecoration: "none",
+            }}
+          >
+            <img
+              src={
+                isActive("purchaseDamage")
+
+                  ? "/Purchase_Order_G.png"
+                  : "/Purchase Order 1.png"
+              }
+              alt="Purchase Return"
+              style={{
+                width: "18px",
+                filter: isActive("purchaseDamage") ? "none" : "brightness(0) invert(1)",
+              }}
+            />
+            {!collapsed && (
+              <span
+                style={{
+                  color: isActive("purchaseReturn") ? "#28a745" : "#ffffff",
+                  marginLeft: "10px",
+                }}
+              >
+                Purchase Damage
+              </span>
+            )}
+          </a>
+
+
+          
+
 
 
 
@@ -610,6 +652,18 @@ export default function Sidebar({ collapsed }) {
         className={subLinkClass("ReturnSpareParts")}
       >
         - Return
+      </a>
+
+             <a
+        href="#"
+        onClick={(e) => {
+          e.preventDefault();
+          setComponentsOpen(true);
+          handleLinkClick("sparepartDamage");
+        }}
+        className={subLinkClass("sparepartDamage")}
+      >
+        - Purchase Damage
       </a>
     </div>
   )}

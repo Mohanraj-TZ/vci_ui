@@ -14,7 +14,6 @@ import DistrictPage from './Pages/DistrictPage';
 import CountryPage from './Pages/Countrypage';
 import CategoryPage from './pages/CategoryPage';
 import ProductPage from './Pages/ProductPage';
-import SerialStockCheckPage from './pages/SerialStockCheckPage';
 
 
 import SoldPage from './pages/SoldPage';
@@ -43,19 +42,20 @@ import VciCustomer from './Pages/VciCustomer';
 // import AddProduct from './Pages/AddProduct';
 import UrgentVciListPage from "./Pages/ChnagedVci";
 import ServiceList from './Pages/ServiceList';
-  import AddServicePage from './Pages/AddServicePage';
-    import EditService from './Pages/EditService';
+import AddServicePage from './Pages/AddServicePage';
+import EditService from './Pages/EditService';
 import TrackingPage from "./Pages/TrackingPage";
 import UrgentVci from './Pages/UrgentVci';
-import ChangedVciPage from "./Pages/ChnagedVci"; 
-import EditUrgentVci from "./Pages/EditUrgentVci"; 
+import ChangedVciPage from "./Pages/ChnagedVci";
+import EditUrgentVci from "./Pages/EditUrgentVci";
+import SerialStockCheckPage from "./Pages/SerialStockCheckPage"
 
 
-import PcbDamageList from "./Pages/PcbDamageList";
-import AddPcbDamage from "./Pages/AddPcbDamage";
+// import PcbDamageList from "./Pages/PcbDamageList";
+// import AddPcbDamage from "./Pages/AddPcbDamage";
 
-import SparepartDamageList from "./Pages/SparepartDamageList";
-import AddSparepartDamage from "./Pages/AddSparepartDamage";
+// import SparepartDamageList from "./Pages/SparepartDamageList";
+// import AddSparepartDamage from "./Pages/AddSparepartDamage";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('authToken'));
@@ -149,22 +149,22 @@ export default function App() {
           {/* Other Master Pages */}
           <Route path="Vendor" element={<Vendor />} />
           <Route path="VciCustomer" element={<VciCustomer />} />
-                    <Route path="serviceProduct" element={<ServiceList />} />
+          <Route path="serviceProduct" element={<ServiceList />} />
           <Route path="/service-vci/add" element={<AddServicePage />} />
-<Route path="/service-vci/:id/edit" element={<EditService />} />
-                          <Route path="/tracking-by-challan/:id" element={<TrackingPage />} />
-<Route path="/urgentvci" element={<UrgentVci />} />
-<Route path="/urgent-vci-list" element={<UrgentVciListPage />} />
+          <Route path="/service-vci/:id/edit" element={<EditService />} />
+          <Route path="/tracking-by-challan/:id" element={<TrackingPage />} />
+          <Route path="/urgentvci" element={<UrgentVci />} />
+          <Route path="/urgent-vci-list" element={<UrgentVciListPage />} />
 
-      <Route path="/changedvci" element={<ChangedVciPage />} />
-        <Route path="/changed-vci/edit/:id" element={<EditUrgentVci />} />
+          <Route path="/changedvci" element={<ChangedVciPage />} />
+          <Route path="/changed-vci/edit/:id" element={<EditUrgentVci />} />
 
-        
-       <Route path="purchaseDamage" element={<PcbDamageList />} />
-                               <Route path="/damaged-items/add" element={<AddPcbDamage />} />
 
-                                <Route path="sparepartDamage" element={<SparepartDamageList />} />
-                                 <Route path="/damaged/add" element={<AddSparepartDamage />} />
+          {/* <Route path="purchaseDamage" element={<PcbDamageList />} /> */}
+          {/* <Route path="/damaged-items/add" element={<AddPcbDamage />} /> */}
+
+          {/* <Route path="sparepartDamage" element={<SparepartDamageList />} /> */}
+          {/* <Route path="/damaged/add" element={<AddSparepartDamage />} /> */}
 
         </Route>
 

@@ -41,11 +41,13 @@ import ReturnSparePartsPage from './Pages/ReturnSpareParts';
 import Vendor from './Pages/vendor';
 import VciCustomer from './Pages/VciCustomer';
 // import AddProduct from './Pages/AddProduct';
-
- import ServiceList from './Pages/ServiceList';
+import UrgentVciListPage from "./Pages/ChnagedVci";
+import ServiceList from './Pages/ServiceList';
   import AddServicePage from './Pages/AddServicePage';
     import EditService from './Pages/EditService';
 import TrackingPage from "./Pages/TrackingPage";
+import UrgentVci from './Pages/UrgentVci';
+import ChangedVciPage from "./Pages/ChnagedVci"; // adjust path if needed
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('authToken'));
@@ -143,6 +145,10 @@ export default function App() {
           <Route path="/service-vci/add" element={<AddServicePage />} />
 <Route path="/service-vci/:id/edit" element={<EditService />} />
                           <Route path="/tracking-by-challan/:id" element={<TrackingPage />} />
+<Route path="/urgentvci" element={<UrgentVci />} />
+<Route path="/urgent-vci-list" element={<UrgentVciListPage />} />
+
+      <Route path="/changedvci" element={<ChangedVciPage />} />
 
         </Route>
 

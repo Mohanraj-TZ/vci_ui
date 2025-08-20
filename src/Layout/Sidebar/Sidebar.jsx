@@ -21,6 +21,7 @@ export default function Sidebar({ collapsed }) {
   const [productOpen, setProductOpen] = useState(isActive("product"));
   const [metadataOpen, setMetadataOpen] = useState(isActive("metadata"));
   const [componentsOpen, setComponentsOpen] = useState(isActive("components"));
+  const [serviceVCIOpen, setServiceVCIOpen] = useState(false);
 
   useEffect(() => {
     setProductOpen(isActive("product"));
@@ -357,42 +358,76 @@ export default function Sidebar({ collapsed }) {
         {/* Service */}
         <div className="sidebar-link-titles">{!collapsed && "Service"}</div>
 
-        <div className="mb-1">
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              handleLinkClick("serviceProduct");
-            }}
-            className="d-flex align-items-center"
-            style={{
-              backgroundColor: isActive("serviceProduct") ? "#278C582E" : "transparent",
-              borderRadius: "8px",
-              padding: "12px",
-              textDecoration: "none",
-            }}
-          >
-            <img
-              src={isActive("serviceProduct") ? "/ServiceVci_G.png" : "/Service VCI.png"}
-              alt="Service Product"
-              style={{
-                width: "18px",
-                filter: isActive("serviceProduct") ? "none" : "brightness(0) invert(1)",
-              }}
-            />
-            {!collapsed && (
-              <span
-                style={{
-                  color: isActive("serviceProduct") ? "#28a745" : "white",
-                  marginLeft: "10px",
-                }}
-              >
-                Service Product
-              </span>
-            )}
-          </a>
+      {/* Service VCI Dropdown */}
+<div className="mb-1">
+  <button
+    onClick={() => setServiceVCIOpen(!serviceVCIOpen)}
+    className="bg-transparent border-0 w-100 text-start p-0"
+  >
+    <div className="d-flex align-items-center">
+      {!collapsed && (
+        <span
+          style={{
+            color: isActive("serviceVCI") ? "#28a745" : "#ffffff",
+            marginLeft: "10px",
+          }}
+        >
+          Service VCI
+        </span>
+      )}
+      {!collapsed && (
+        <span
+          className="ms-auto"
+          style={{
+            color: isActive("serviceVCI") ? "#28a745" : "#ffffff",
+            marginLeft: "auto",
+          }}
+        >
+          {serviceVCIOpen ? "▾" : "▸"}
+        </span>
+      )}
+    </div>
+  </button>
 
-        </div>
+  {!collapsed && serviceVCIOpen && (
+    <div className="ms-2">
+      <a
+        href="#"
+        onClick={(e) => {
+          e.preventDefault();
+          handleLinkClick("serviceProduct");
+        }}
+        className={subLinkClass("serviceProduct")}
+      >
+        - Service Product
+      </a>
+
+    <a
+  href="#"
+  onClick={(e) => {
+    e.preventDefault();
+    handleLinkClick("urgentVCI", "/urgentvci"); // Pass the path here
+  }}
+  className={subLinkClass("urgentVCI")}
+>
+  - Urgent VCI
+</a>
+<a
+  href="#"
+  onClick={(e) => {
+    e.preventDefault();
+    handleLinkClick("changedVCI");
+    navigate("/changedvci");   // 👈 points to ChangedVci.jsx
+  }}
+  className={subLinkClass("changedVCI")}
+>
+  - Changed VCI
+</a>
+
+    </div>
+  )}
+</div>
+
       
        {/* Basics */}
        <div className="sidebar-link-titles pb-2">{!collapsed && "Basics"}</div>

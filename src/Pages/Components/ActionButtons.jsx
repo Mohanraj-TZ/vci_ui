@@ -3,7 +3,7 @@ import React from "react";
 import { Button } from "react-bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTrack, onRepair }) {
+export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTrack, onRepair, onWarranty }) {
   return (
     <>
       {onPdf && (
@@ -71,9 +71,7 @@ export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTra
         </Button>
       )}
 
-
-         {onReturn && (
-
+      {onReturn && (
         <Button
           variant="outline-primary"
           size="sm"
@@ -93,9 +91,9 @@ export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTra
         >
           <i className="bi bi-arrow-return-left"></i>
         </Button>
-        
       )}
-          {onTrack && (
+
+      {onTrack && (
         <Button
           size="sm"
           variant="outline-primary"
@@ -138,6 +136,30 @@ export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTra
           }}
         >
           <i className="bi bi-tools"></i>
+        </Button>
+      )}
+
+      {/* Warranty Button */}
+      {onWarranty && (
+        <Button
+          size="sm"
+          variant="outline-primary"
+          title="Warranty"
+          onClick={onWarranty}
+          className="me-1"
+          style={{
+            borderColor: "#2E3A59",
+            color: "#2E3A59",
+            backgroundColor: "transparent",
+            width: "32px",
+            height: "32px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "4px",
+          }}
+        >
+          <i className="bi bi-shield-check"></i>
         </Button>
       )}
     </>

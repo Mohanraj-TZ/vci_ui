@@ -1750,9 +1750,9 @@ export default function PurchaseSparepartsPage() {
                             </span>
                         ) : "N/A"}
                     </p>
-                    <hr />
-                    <h6>Item Warranties</h6>
-                    {selectedWarranty.items && selectedWarranty.items.length > 0 ? (
+                    
+                    {/* <h6>Item Warranties</h6> */}
+                    {/* {selectedWarranty.items && selectedWarranty.items.length > 0 ? (
                         <table className="table table-bordered">
                             <thead>
                                 <tr>
@@ -1783,7 +1783,7 @@ export default function PurchaseSparepartsPage() {
                         </table>
                     ) : (
                         <p>No item warranty details available.</p>
-                    )}
+                    )} */}
                 </div>
             ) : (
                 <p>No warranty details available. Please try again or contact support.</p>

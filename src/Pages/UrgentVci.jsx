@@ -5,271 +5,280 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../api";
 import { toast } from "react-toastify"; // ✅ Use toastify
 
-
 export default function UrgentVci() {
-  const navigate = useNavigate();
+  const navigate = useNavigate();
 
-  const [allPcbSerials, setAllPcbSerials] = useState([]);
-  const [formData, setFormData] = useState({
-    challan_no: "",
-    challan_date: "",
-    courier_name: "",
-    description: "",
-    remarks: "",
-    sent_date: "",
-    received_date: "",
-    from_place: "",
-    to_place: "",
-    quantity: "",
-  });
+  const [allPcbSerials, setAllPcbSerials] = useState([]);
+  const [formData, setFormData] = useState({
+    challan_no: "",
+    challan_date: "",
+    courier_name: "",
+    description: "",
+    remarks: "",
+    sent_date: "",
+    received_date: "",
+    from_place: "",
+    to_place: "",
+    quantity: "",
+  });
 
-  const [items, setItems] = useState([
-    {
-      category_id: "",
-      vci_serial_no: "",
-      is_urgent: "Yes",
-      hsn_code: "",
-      tested_date: "",
-      issue_found: "",
-      action_taken: "",
-      remarks: "",
-      testing_assigned_to: "",
-      testing_status: "pending",
-      pcb_serial_no: "",
-      purchase_id: "",
-    },
-  ]);
+  const [items, setItems] = useState([
+    {
+      category_id: "",
+      vci_serial_no: "",
+      is_urgent: "Yes",
+      hsn_code: "",
+      tested_date: "",
+      issue_found: "",
+      action_taken: "",
+      remarks: "",
+      testing_assigned_to: "",
+      testing_status: "pending",
+      pcb_serial_no: "",
+      purchase_id: "",
+    },
+  ]);
 
-  const [categories, setCategories] = useState([]);
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [serviceVciSerials, setServiceVciSerials] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [serviceVciSerials, setServiceVciSerials] = useState([]);
 
-  const statusOptions = [
-    { value: "in_transit", label: "In Transit" },
-    { value: "completed", label: "Completed" },
-  ];
+  const statusOptions = [
+    { value: "in_transit", label: "In Transit" },
+    { value: "completed", label: "Completed" },
+  ];
 
-  const placeOptions = [
-    { value: "Mahle", label: "Mahle" },
-    { value: "Tamilzourous", label: "Tamilzourous" },
-    { value: "Valkontek", label: "Valkontek" },
-  ];
+  const placeOptions = [
+    { value: "Mahle", label: "Mahle" },
+    { value: "Tamilzourous", label: "Tamilzourous" },
+    { value: "Valkontek", label: "Valkontek" },
+  ];
 
-  const testingStatusOptions = [
-    { value: "pending", label: "Pending" },
-    { value: "testing", label: "Testing" },
-    { value: "completed", label: "Completed" },
-  ];
+  const testingStatusOptions = [
+    { value: "pending", label: "Pending" },
+    { value: "testing", label: "Testing" },
+    { value: "completed", label: "Completed" },
+  ];
 
-  // ✅ Fetch dropdowns
-  useEffect(() => {
-    let toastShown = false; // flag to prevent duplicate toasts
+  useEffect(() => {
+    const authToken = localStorage.getItem('authToken');
+    if (authToken) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+      fetchDropdownData();
+    } else {
+      console.error("No authentication token found. User is not logged in.");
+      navigate('/login');
+      toast.error("Please log in to access this page.");
+    }
+  }, [navigate]);
 
-    const fetchDropdownData = async () => {
-      try {
-        const [categoriesResponse, serialsResponse, pcbSerialsResponse] =
-          await Promise.all([
-            axios.get(`${API_BASE_URL}/form-dropdowns`),
-            axios.get(`${API_BASE_URL}/urgent-serials`),
-            axios.get(`${API_BASE_URL}/defaultvci`),
-          ]);
+  const fetchDropdownData = async () => {
+    try {
+      const [categoriesResponse, serialsResponse, pcbSerialsResponse] =
+        await Promise.all([
+          axios.get(`${API_BASE_URL}/form-dropdowns`),
+          axios.get(`${API_BASE_URL}/urgent-serials`),
+          axios.get(`${API_BASE_URL}/defaultvci`),
+        ]);
 
-        const cats = categoriesResponse.data?.data?.categories || [];
-        setCategories(cats.map((c) => ({ value: c.id, label: c.category })));
-        setServiceVciSerials(serialsResponse.data.service_vci_serials || []);
-        setAllPcbSerials(pcbSerialsResponse.data?.vcis || []);
-      } catch (err) {
-        if (!toastShown) {
-          toast.error("Failed to load dropdown data");
-          toastShown = true;
-        }
-        console.error("Data load error:", err);
-      }
-    };
+      const cats = categoriesResponse.data?.data?.categories || [];
+      setCategories(cats.map((c) => ({ value: c.id, label: c.category })));
+      setServiceVciSerials(serialsResponse.data.service_vci_serials || []);
+      setAllPcbSerials(pcbSerialsResponse.data?.vcis || []);
+    } catch (err) {
+      if (err.response && err.response.status === 401) {
+        toast.error("Session expired or unauthorized. Please log in again.");
+        navigate('/login');
+      } else {
+        toast.error("Failed to load dropdown data");
+      }
+      console.error("Data load error:", err);
+    }
+  };
 
-    fetchDropdownData();
-  }, []);
+  // Your existing useEffect for form logic (keep this)
+  useEffect(() => {
+    if (formData.from_place === "Mahle") {
+      setFormData((prev) => ({ ...prev, to_place: "Tamilzourous" }));
+    }
+  }, [formData.from_place]);
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    let updatedFormData = { ...formData, [name]: value };
+    setFormData(updatedFormData);
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
 
-  useEffect(() => {
-    if (formData.from_place === "Mahle") {
-      setFormData((prev) => ({ ...prev, to_place: "Tamilzourous" }));
-    }
-  }, [formData.from_place]);
+  const handleSelectChange = (name, value) => {
+    setFormData({ ...formData, [name]: value });
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    let updatedFormData = { ...formData, [name]: value };
-    setFormData(updatedFormData);
-    setErrors((prev) => ({ ...prev, [name]: "" }));
-  };
+  const handleItemChange = (index, field, value) => {
+    const updatedItems = [...items];
+    updatedItems[index][field] = value;
+    setItems(updatedItems);
+  };
 
-  const handleSelectChange = (name, value) => {
-    setFormData({ ...formData, [name]: value });
-    setErrors((prev) => ({ ...prev, [name]: "" }));
-  };
+  const handleVciSerialChange = (index, value) => {
+    const updatedItems = [...items];
+    updatedItems[index].vci_serial_no = value;
+    setItems(updatedItems);
+  };
 
-  const handleItemChange = (index, field, value) => {
-    const updatedItems = [...items];
-    updatedItems[index][field] = value;
-    setItems(updatedItems);
-  };
+  const addItemRow = () => {
+    setItems([
+      ...items,
+      {
+        category_id: "",
+        vci_serial_no: "",
+        is_urgent: "Yes",
+        hsn_code: "",
+        tested_date: "",
+        issue_found: "",
+        action_taken: "",
+        remarks: "",
+        testing_assigned_to: "",
+        testing_status: "pending",
+        pcb_serial_no: "",
+        purchase_id: "",
+      },
+    ]);
+  };
 
-  const handleVciSerialChange = (index, value) => {
-    const updatedItems = [...items];
-    updatedItems[index].vci_serial_no = value;
-    setItems(updatedItems);
-  };
+  const removeItemRow = (index) => {
+    const updatedItems = [...items];
+    updatedItems.splice(index, 1);
+    setItems(updatedItems);
+  };
 
-  const addItemRow = () => {
-    setItems([
-      ...items,
-      {
-        category_id: "",
-        vci_serial_no: "",
-        is_urgent: "Yes",
-        hsn_code: "",
-        tested_date: "",
-        issue_found: "",
-        action_taken: "",
-        remarks: "",
-        testing_assigned_to: "",
-        testing_status: "pending",
-        pcb_serial_no: "",
-        purchase_id: "",
-      },
-    ]);
-  };
+  const validateForm = () => {
+    let newErrors = {};
+    const today = new Date().toISOString().split("T")[0];
 
-  const removeItemRow = (index) => {
-    const updatedItems = [...items];
-    updatedItems.splice(index, 1);
-    setItems(updatedItems);
-  };
+    const requiredFields = [
+      "challan_no",
+      "challan_date",
+      "courier_name",
+      "sent_date",
+      "from_place",
+      "to_place",
+    ];
 
-  const validateForm = () => {
-    let newErrors = {};
-    const today = new Date().toISOString().split("T")[0];
+    requiredFields.forEach((field) => {
+      if (!formData[field]) {
+        newErrors[field] = "This field is required";
+      }
+    });
 
-    const requiredFields = [
-      "challan_no",
-      "challan_date",
-      "courier_name",
-      "sent_date",
-      "from_place",
-      "to_place",
-    ];
+    ["challan_date", "sent_date", "received_date"].forEach((dateField) => {
+      if (formData[dateField] && formData[dateField] > today) {
+        newErrors[dateField] = "Future dates are not allowed";
+      }
+    });
 
-    requiredFields.forEach((field) => {
-      if (!formData[field]) {
-        newErrors[field] = "This field is required";
-      }
-    });
+    if (formData.challan_date && formData.sent_date && formData.challan_date !== formData.sent_date) {
+      newErrors.sent_date = "Sent Date must match Challan Date";
+    }
+    if (formData.sent_date && formData.received_date && formData.sent_date === formData.received_date) {
+      newErrors.received_date = "Sent Date and Received Date cannot be the same";
+    }
+    if (formData.from_place && formData.to_place && formData.from_place === formData.to_place) {
+      newErrors.to_place = "From Place and To Place cannot be the same";
+    }
 
-    ["challan_date", "sent_date", "received_date"].forEach((dateField) => {
-      if (formData[dateField] && formData[dateField] > today) {
-        newErrors[dateField] = "Future dates are not allowed";
-      }
-    });
+    items.forEach((item, index) => {
+      if (!item.category_id || !item.vci_serial_no) {
+        if (!newErrors.items) newErrors.items = {};
+        newErrors.items[index] = "Category and VCI Serial No are required";
+      }
+    });
 
-    if (formData.challan_date && formData.sent_date && formData.challan_date !== formData.sent_date) {
-      newErrors.sent_date = "Sent Date must match Challan Date";
-    }
-    if (formData.sent_date && formData.received_date && formData.sent_date === formData.received_date) {
-      newErrors.received_date = "Sent Date and Received Date cannot be the same";
-    }
-    if (formData.from_place && formData.to_place && formData.from_place === formData.to_place) {
-      newErrors.to_place = "From Place and To Place cannot be the same";
-    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    items.forEach((item, index) => {
-      if (!item.category_id || !item.vci_serial_no) {
-        if (!newErrors.items) newErrors.items = {};
-        newErrors.items[index] = "Category and VCI Serial No are required";
-      }
-    });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    if (validateForm()) {
+      const payload = {
+        ...formData,
+        items: items,
+      };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+      try {
+        const response = await axios.post(`${API_BASE_URL}/urgentvci`, payload);
+        if (response.status === 201) {
+          toast.success("Urgent service saved successfully");
+          // Reset form on success
+          setFormData({
+            challan_no: "",
+            challan_date: "",
+            courier_name: "",
+            description: "",
+            remarks: "",
+            sent_date: "",
+            received_date: "",
+            from_place: "",
+            to_place: "",
+            quantity: "",
+          });
+          setItems([
+            {
+              category_id: "",
+              vci_serial_no: "",
+              is_urgent: "Yes",
+              hsn_code: "",
+              tested_date: "",
+              issue_found: "",
+              action_taken: "",
+              remarks: "",
+              testing_assigned_to: "",
+              testing_status: "pending",
+              pcb_serial_no: "",
+              purchase_id: "",
+            },
+          ]);
+          setTimeout(() => navigate("/changedvci"), 1000);
+        } else {
+          toast.error("Failed to save urgent service");
+        }
+      } catch (error) {
+        if (error.response?.data?.errors) {
+          setErrors(error.response.data.errors);
+          toast.error("Please correct the errors");
+        } else if (error.response?.data?.message) {
+          toast.error(error.response.data.message);
+        } else if (error.response && error.response.status === 401) {
+          toast.error("Session expired or unauthorized. Please log in again.");
+          navigate('/login');
+        } else {
+          toast.error("An unexpected error occurred");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      toast.error("Please correct the validation errors");
+      setIsLoading(false);
+    }
+  };
 
-    if (validateForm()) {
-      const payload = {
-        ...formData,
-        items: items,
-      };
-
-      try {
-        const response = await axios.post(`${API_BASE_URL}/urgentvci`, payload);
-        if (response.status === 201) {
-          toast.success("Urgent service saved successfully");
-          // Reset form on success
-          setFormData({
-            challan_no: "",
-            challan_date: "",
-            courier_name: "",
-            description: "",
-            remarks: "",
-            sent_date: "",
-            received_date: "",
-            from_place: "",
-            to_place: "",
-            quantity: "",
-          });
-          setItems([
-            {
-              category_id: "",
-              vci_serial_no: "",
-              is_urgent: "Yes",
-              hsn_code: "",
-              tested_date: "",
-              issue_found: "",
-              action_taken: "",
-              remarks: "",
-              testing_assigned_to: "",
-              testing_status: "pending",
-              pcb_serial_no: "",
-              purchase_id: "",
-            },
-          ]);
-          setTimeout(() => navigate("/changedvci"), 1000);
-        } else {
-          toast.error("Failed to save urgent service");
-        }
-      } catch (error) {
-        if (error.response?.data?.errors) {
-          setErrors(error.response.data.errors);
-          toast.error("Please correct the errors");
-        } else if (error.response?.data?.message) {
-          toast.error(error.response.data.message);
-        } else {
-          toast.error("An unexpected error occurred");
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      toast.error("Please correct the validation errors");
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="container-fluid bg-white p-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">Add New Urgent Service</h5>
-        <Button
-          variant="secondary"
-          onClick={() => navigate("/urgent-vci-list")}
-        >
-          <i className="bi bi-arrow-left me-1"></i> Back
-        </Button>
-      </div>
+  return (
+    <div className="container-fluid bg-white p-4">
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h5 className="mb-0">Add New Urgent Service</h5>
+        <Button
+          variant="secondary"
+          onClick={() => navigate("/urgent-vci-list")}
+        >
+          <i className="bi bi-arrow-left me-1"></i> Back
+        </Button>
+      </div>
       <Form onSubmit={handleSubmit}>
         <Row className="mb-3 pt-3">
           <Col md={4}>

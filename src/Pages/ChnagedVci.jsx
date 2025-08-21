@@ -10,7 +10,6 @@ import Breadcrumb from "./Components/Breadcrumb";
 import Pagination from "./Components/Pagination";
 import Search from "./Components/Search";
 
-// 🔹 Header styling
 const styles = `
   .table-header-changed-vci {
     background-color: #2E3A59;
@@ -63,79 +62,91 @@ export default function ChangedVciPage() {
       const res = await axios.get(`${API_BASE_URL}/urgent-services`);
       const groupedData = {};
 
-      if (Array.isArray(res.data.data)) {
-        res.data.data.forEach((item) => {
-          const groupKey = `${item.created_at}-${item.created_by || "unknown"}`;
-          if (!groupedData[groupKey]) {
-            groupedData[groupKey] = {
-              id: groupKey,
-              created_by: item.created_by,
-              created_at: item.created_at,
-              status: item.status,
-              remarks: item.remarks,
-              from_place: item.from_place,
-              to_place: item.to_place,
-              challan_no: item.challan_no || "—",
-              challan_date: item.challan_date || "—",
-              courier_name: item.courier_name || "—",
-              description: item.description || "—",
-              quantity: 1,
-              items: [
-                {
-                  id: item.id,
-                  original_serial_no: item.original_serial_no,
-                  pcb_serial_no: item.pcb_serial_no,
-                  is_urgent: item.is_urgent === "Yes",
-                },
-              ],
-            };
-          } else {
-            groupedData[groupKey].items.push({
-              id: item.id,
-              original_serial_no: item.original_serial_no,
-              pcb_serial_no: item.pcb_serial_no,
-              is_urgent: item.is_urgent === "Yes",
-            });
-            groupedData[groupKey].quantity += 1;
-          }
-        });
-      }
+if (Array.isArray(res.data.data)) {
+  res.data.data.forEach((item) => {
+    const groupKey = item.challan_no || `group-${item.id}`; // ✅ Use challan_no or fallback
+    if (!groupedData[groupKey]) {
+      groupedData[groupKey] = {
+        id: item.id, // ✅ Keep the real DB id
+        created_by: item.created_by,
+        created_at: item.created_at,
+        status: item.status,
+        remarks: item.remarks,
+        from_place: item.from_place,
+        to_place: item.to_place,
+        challan_no: item.challan_no || "—",
+        challan_date: item.challan_date || "—",
+        courier_name: item.courier_name || "—",
+        description: item.description || "—",
+        quantity: 1,
+        items: [
+          {
+            id: item.id, // ✅ Real item ID
+            original_serial_no: item.original_serial_no,
+            pcb_serial_no: item.pcb_serial_no,
+            is_urgent: item.is_urgent === "Yes",
+          },
+        ],
+      };
+    } else {
+      groupedData[groupKey].items.push({
+        id: item.id,
+        original_serial_no: item.original_serial_no,
+        pcb_serial_no: item.pcb_serial_no,
+        is_urgent: item.is_urgent === "Yes",
+      });
+      groupedData[groupKey].quantity += 1;
+    }
+  });
+}
+
       setChangedVcis(Object.values(groupedData));
       toast.success("Changed VCI details fetched successfully!");
     } catch (err) {
+      console.error("Fetch error:", err);
       toast.error("Failed to fetch Changed VCI details.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (itemId) => {
-    const result = await MySwal.fire({
-      title: "Are you sure?",
-      text: "Do you really want to delete this VCI entry?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#2FA64F",
-      confirmButtonText: "Yes, delete it!",
-      customClass: {
-        popup: "custom-compact",
-      },
+  // FIX: This function now accepts the entire grouped VCI object
+const handleDelete = async (vciToDelete) => {
+  const result = await MySwal.fire({
+    title: "Are you sure?",
+    text: "Do you really want to delete this VCI entry and all its items?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete it!",
+    customClass: {
+      popup: "custom-compact",
+    },
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    // Loop through each item in the grouped entry and send a DELETE request
+    const deletePromises = vciToDelete.items.map((item) => {
+      console.log(`Deleting item with ID: ${item.id}`); // For debugging
+      return axios.delete(`${API_BASE_URL}/urgentvci/${item.id}`);
     });
 
-    if (!result.isConfirmed) return;
+    await Promise.all(deletePromises);
 
-    try {
-      await axios.delete(`${API_BASE_URL}/urgent-services/${itemId}`);
-      toast.success("VCI entry deleted successfully!");
-      fetchChangedVcis();
-    } catch {
-      toast.error("Failed to delete VCI entry.");
-    }
+    toast.success("VCI entry and all associated items deleted successfully!");
+    fetchChangedVcis(); // Refresh the list after deletion
+  } catch (err) {
+    console.error("Deletion error:", err);
+    toast.error("Failed to delete VCI entry. Please try again.");
+  }
+};
+  const handleEdit = (id) => {
+    navigate(`/edit-urgent-vci/${id}`);
   };
-    const handleEdit = (id) => {
-        navigate(`/edit-urgent-vci/${id}`);
-    };
+
   const handleShowModal = (data) => {
     setModalData(data);
     setShowModal(true);
@@ -151,6 +162,10 @@ export default function ChangedVciPage() {
       sortField === field && sortDirection === "asc" ? "desc" : "asc";
     setSortField(field);
     setSortDirection(direction);
+  };
+
+  const handleAddUrgentVCI = () => {
+    navigate("/urgentVCI");
   };
 
   const filteredVcis = changedVcis.filter(
@@ -235,6 +250,22 @@ export default function ChangedVciPage() {
               >
                 <i className="bi bi-arrow-clockwise"></i>
               </Button>
+              {/* Add Urgent VCI Button */}
+              <Button
+                size="sm"
+                onClick={handleAddUrgentVCI}
+                style={{
+                  backgroundColor: '#2FA64F',
+                  borderColor: '#2FA64F',
+                  color: '#fff',
+                  padding: '0.25rem 0.5rem',
+                  fontSize: '0.8rem',
+                  minWidth: '90px',
+                  height: '28px',
+                }}
+              >
+                + Add Urgent VCI
+              </Button>
             </div>
             <Search
               search={search}
@@ -254,170 +285,170 @@ export default function ChangedVciPage() {
           >
             <thead className="table-header-changed-vci">
             <tr>
-                <th
+              <th
                 style={{
-                    width: "50px",
-                    textAlign: "center",
-                    whiteSpace: "nowrap",
-                    cursor: "default",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  width: "50px",
+                  textAlign: "center",
+                  whiteSpace: "nowrap",
+                  cursor: "default",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 S.No
-                </th>
-                <th
+              </th>
+              <th
                 onClick={() => handleSort("challan_no")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 Challan No{" "}
                 {sortField === "challan_no" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th>
+              <th
                 onClick={() => handleSort("challan_date")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 Challan Date{" "}
                 {sortField === "challan_date" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th>
+              <th
                 onClick={() => handleSort("courier_name")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 Courier Name{" "}
                 {sortField === "courier_name" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th>
+              <th
                 onClick={() => handleSort("description")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 Description{" "}
                 {sortField === "description" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th>
+              <th
                 onClick={() => handleSort("quantity")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 Quantity{" "}
                 {sortField === "quantity" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th>
+              <th
                 onClick={() => handleSort("status")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 Status{" "}
                 {sortField === "status" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th>
+              <th
                 onClick={() => handleSort("from_place")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 From{" "}
                 {sortField === "from_place" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th>
+              <th
                 onClick={() => handleSort("to_place")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 To{" "}
                 {sortField === "to_place" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th>
+              {/* <th
                 onClick={() => handleSort("remarks")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 Remarks{" "}
                 {sortField === "remarks" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th> */}
+              <th
                 onClick={() => handleSort("items")}
                 style={{
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
                 }}
-                >
+              >
                 Serial Numbers{" "}
                 {sortField === "items" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
-                </th>
-                <th
+              </th>
+              {/* <th
                 style={{
-                    textAlign: "center",
-                    width: "110px",
-                    whiteSpace: "nowrap",
-                    backgroundColor: "#2E3A59",
-                    color: "white",
-                    cursor: "default",
+                  textAlign: "center",
+                  width: "110px",
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#2E3A59",
+                  color: "white",
+                  cursor: "default",
                 }}
-                >
+              >
                 Action
-                </th>
+              </th> */}
             </tr>
             </thead>
             <tbody>
-              {loading ? (
+            {loading ? (
                 <tr>
                   <td colSpan="12" className="text-center py-4">
                     <Spinner animation="border" />
                   </td>
                 </tr>
-              ) : paginatedVcis.length === 0 ? (
+            ) : paginatedVcis.length === 0 ? (
                 <tr>
                   <td colSpan="12" className="text-center py-4 text-muted">
                     <img
@@ -427,57 +458,57 @@ export default function ChangedVciPage() {
                     />
                   </td>
                 </tr>
-              ) : (
+            ) : (
                 paginatedVcis.map((vci, index) => (
-                  <tr key={vci.id}>
-                    <td className="text-center">
-                      {(page - 1) * perPage + index + 1}
-                    </td>
-                    <td>{vci.challan_no}</td>
-                    <td>{vci.challan_date}</td>
-                    <td>{vci.courier_name}</td>
-                    <td>{vci.description}</td>
-                    <td>{vci.quantity}</td>
-                    <td>{vci.status}</td>
-                    <td>{vci.from_place}</td>
-                    <td>{vci.to_place}</td>
-                    <td>{vci.remarks}</td>
-                    <td>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={() => handleShowModal(vci.items)}
-                        className="p-0"
-                      >
-                        <i className="bi bi-list-ul"></i> View
-                      </Button>
-                    </td>
-                    <td className="text-center">
-                      <Button
-                        variant=""
-                        size="sm"
-                        onClick={() => handleEdit(vci.items[0].id)}
-                        className="me-1"
-                        style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
-                      >
-                        <i className="bi bi-pencil-square"></i>
-                      </Button>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => handleDelete(vci.items[0].id)}
-                        style={{
-                          borderColor: "#2E3A59",
-                          color: "#2E3A59",
-                          backgroundColor: "transparent",
-                        }}
-                      >
-                        <i className="bi bi-trash"></i>
-                      </Button>
-                    </td>
-                  </tr>
+                    <tr key={vci.id}>
+                      <td className="text-center">
+                        {(page - 1) * perPage + index + 1}
+                      </td>
+                      <td>{vci.challan_no}</td>
+                      <td>{vci.challan_date}</td>
+                      <td>{vci.courier_name}</td>
+                      <td>{vci.description}</td>
+                      <td>{vci.quantity}</td>
+                      <td>{vci.status}</td>
+                      <td>{vci.from_place}</td>
+                      <td>{vci.to_place}</td>
+                      {/* <td>{vci.remarks}</td> */}
+                      <td>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => handleShowModal(vci.items)}
+                          className="p-0"
+                        >
+                          <i className="bi bi-list-ul"></i> View
+                        </Button>
+                      </td>
+                      <td className="text-center">
+ {/* <Button
+  variant=""
+  size="sm"
+  onClick={() => navigate(`/edit-urgent-vci/${vci.items[0].id}`)}
+  className="me-1"
+  style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
+>
+  <i className="bi bi-pencil-square"></i>
+</Button> */}
+              {/* <Button
+  variant="outline-primary"
+  size="sm"
+  onClick={() => handleDelete(vci)}
+  style={{
+    borderColor: "#2E3A59",
+    color: "#2E3A59",
+    backgroundColor: "transparent",
+  }}
+>
+  <i className="bi bi-trash"></i>
+</Button> */}
+                      </td>
+                    </tr>
                 ))
-              )}
+            )}
             </tbody>
           </table>
         </div>
@@ -498,34 +529,26 @@ export default function ChangedVciPage() {
         </Modal.Header>
         <Modal.Body>
           {modalData && modalData.length > 0 ? (
-            <ul className="list-unstyled">
-              {modalData.map((item, i) => (
-                <li key={i} className="mb-2">
-                  <span className="fw-semibold text-danger">
-                    VCI: {item.original_serial_no || "—"}
-                  </span>{" "}
-                  <i className="bi bi-arrow-right"></i>{" "}
-                  <span className="fw-semibold text-success">
-                    PCB: {item.pcb_serial_no || "—"}
-                  </span>
-                  {item.is_urgent && (
-                    <span className="text-danger fw-semibold ms-2">
-                      (Urgent)
-                    </span>
-                  )}
-                  {/* <Button
-                    variant="danger"
-                    size="sm"
-                    className="ms-2"
-                    onClick={() => handleDelete(item.id)}
-                  >
-                    <i className="bi bi-trash"></i>
-                  </Button> */}
-                </li>
-              ))}
-            </ul>
+              <ul className="list-unstyled">
+                {modalData.map((item, i) => (
+                    <li key={i} className="mb-2">
+                      <span className="fw-semibold text-danger">
+                        VCI: {item.original_serial_no || "—"}
+                      </span>{" "}
+                      <i className="bi bi-arrow-right"></i>{" "}
+                      <span className="fw-semibold text-success">
+                        PCB: {item.pcb_serial_no || "—"}
+                      </span>
+                      {item.is_urgent && (
+                          <span className="text-danger fw-semibold ms-2">
+                          (Urgent)
+                        </span>
+                      )}
+                    </li>
+                ))}
+              </ul>
           ) : (
-            <p>No serial numbers to display.</p>
+              <p>No serial numbers to display.</p>
           )}
         </Modal.Body>
         <Modal.Footer>

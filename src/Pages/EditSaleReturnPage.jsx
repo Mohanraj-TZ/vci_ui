@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { API_BASE_URL } from "../api";
 
 export default function SaleReturnDetails() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export default function SaleReturnDetails() {
     }
 
     axios
-      .get(`http://localhost:8000/api/sale-returns/view/${id}`, headers) // Pass the headers here
+      .get(`${API_BASE_URL}/sale-returns/view/${id}`, headers) // Pass the headers here
       .then((res) => {
         const data = res.data;
         setFormData({

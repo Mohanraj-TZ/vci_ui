@@ -2,10 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Form, Button, Table, Row, Col, Alert } from "react-bootstrap";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../api";
 
-// Note: In a real application, this URL should be configured
-// based on the environment (development, staging, production).
-const API_BASE_URL = "http://localhost:8000/api";
 
 export default function AddService() {
   const navigate = useNavigate();

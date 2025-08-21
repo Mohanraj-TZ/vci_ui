@@ -609,7 +609,7 @@ await axios.put(`${API_BASE_URL}/urgentvci/${itemId}`, { is_urgent: newUrgentSta
                                                 onRepair={() => handleShowRepairModal(item)}
                                                 onEdit={() => handleEdit(item)}
                                                 onDelete={() => handleDelete(item.id)}
-                                                onUrgent={() => handleIndividualUrgentChange(item.id)}
+                                                // onUrgent={() => handleIndividualUrgentChange(item.id)}
                                                 urgentStatus={item.urgent}
                                             />
                                         </td>

@@ -444,7 +444,7 @@ export default function Sidebar({ collapsed }) {
         - Service Product
       </a>
 
-    <a
+    {/* <a
   href="#"
   onClick={(e) => {
     e.preventDefault();
@@ -453,7 +453,7 @@ export default function Sidebar({ collapsed }) {
   className={subLinkClass("urgentVCI")}
 >
   - Urgent VCI
-</a>
+</a> */}
 <a
   href="#"
   onClick={(e) => {

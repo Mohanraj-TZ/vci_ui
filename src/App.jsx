@@ -51,11 +51,11 @@ import EditUrgentVci from "./Pages/EditUrgentVci";
 import SerialStockCheckPage from "./Pages/SerialStockCheckPage"
 
 
-// import PcbDamageList from "./Pages/PcbDamageList";
-// import AddPcbDamage from "./Pages/AddPcbDamage";
+import PcbDamageList from "./Pages/PcbDamageList";
+import AddPcbDamage from "./Pages/AddPcbDamage";
 
-// import SparepartDamageList from "./Pages/SparepartDamageList";
-// import AddSparepartDamage from "./Pages/AddSparepartDamage";
+import SparepartDamageList from "./Pages/SparepartDamageList";
+import AddSparepartDamage from "./Pages/AddSparepartDamage";
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('authToken'));
@@ -160,11 +160,11 @@ export default function App() {
           <Route path="/changed-vci/edit/:id" element={<EditUrgentVci />} />
 
 
-          {/* <Route path="purchaseDamage" element={<PcbDamageList />} /> */}
-          {/* <Route path="/damaged-items/add" element={<AddPcbDamage />} /> */}
+          <Route path="purchaseDamage" element={<PcbDamageList />} />
+          <Route path="/damaged-items/add" element={<AddPcbDamage />} />
 
-          {/* <Route path="sparepartDamage" element={<SparepartDamageList />} /> */}
-          {/* <Route path="/damaged/add" element={<AddSparepartDamage />} /> */}
+          <Route path="sparepartDamage" element={<SparepartDamageList />} />
+          <Route path="/damaged/add" element={<AddSparepartDamage />} />
 
         </Route>
 

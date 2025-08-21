@@ -32,6 +32,10 @@ export default function PurchaseSparepartsPage() {
         const today = new Date();
         return today.toISOString().split("T")[0];
     });
+    const [warrantyStartDate, setWarrantyStartDate] = useState("");
+    const [warrantyEndDate, setWarrantyEndDate] = useState("");
+    const [showWarrantyStartCalendar, setShowWarrantyStartCalendar] = useState(false);
+    const [showWarrantyEndCalendar, setShowWarrantyEndCalendar] = useState(false);
     const [returnDate, setReturnDate] = useState(() => {
         const today = new Date();
         return today.toISOString().split("T")[0];
@@ -477,7 +481,10 @@ export default function PurchaseSparepartsPage() {
         };
 
         console.log("Submitting return payload:", JSON.stringify(payload, null, 2));
-
+        // Add warranty dates if OBD board is selected
+        if (hasObdBoard()) {
+            payload.warranty_start_date = calculateWarrantyDetails().startDate;
+        }
         if (!validateForm(payload, items, true)) {
             setLoading(false);
             toast.error("Form validation failed. Please check the errors.");
@@ -590,10 +597,25 @@ export default function PurchaseSparepartsPage() {
                 invoiceNo: purchase.invoice_no,
                 notes: purchase.notes || "",
             });
+            // Set warranty dates if editing and has OBD board
+            if (purchase.warranty_start_date && purchase.warranty_end_date) {
+                setWarrantyStartDate(purchase.warranty_start_date);
+                setWarrantyEndDate(purchase.warranty_end_date);
+            } else if (purchase.invoice_date) {
+                // Auto-calculate warranty dates
+                const startDate = new Date(purchase.invoice_date + "T00:00:00");
+                const endDate = new Date(startDate);
+                endDate.setFullYear(endDate.getFullYear() + 1);
+                
+                setWarrantyStartDate(purchase.invoice_date);
+                setWarrantyEndDate(`${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`);
+            }
         } else {
             setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
             setInvoiceDate(new Date().toISOString().split("T")[0]);
             setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
+            setWarrantyStartDate("");
+            setWarrantyEndDate("");
         }
         setShowForm(true);
         setShowReturnForm(false);
@@ -661,7 +683,43 @@ export default function PurchaseSparepartsPage() {
     });
 
     const paginatedSpareparts = sortedSpareparts.slice((page - 1) * perPage, page * perPage);
+    // Add these helper functions after your existing functions
+    const isObdBoard = (sparepartId) => {
+        const sparepart = availableSpareparts.find(sp => String(sp.id) === String(sparepartId));
+        return sparepart && sparepart.name.toLowerCase().includes("obd board");
+    };
 
+    const hasObdBoard = () => {
+        return sparePartsRows.some(row => 
+            row.sparepart_id && isObdBoard(row.sparepart_id)
+        );
+    };
+
+    const calculateWarrantyDetails = () => {
+        if (!invoiceDate) return { startDate: '', status: '', duration: '' };
+        
+        const startDate = new Date(invoiceDate + "T00:00:00");
+        const endDate = new Date(startDate);
+        endDate.setFullYear(endDate.getFullYear() + 1);
+        
+        const today = new Date();
+        const isActive = today <= endDate;
+        
+        let duration = '';
+        if (isActive) {
+            const diffTime = endDate.getTime() - today.getTime();
+            const diffMonths = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30.44)); 
+            duration = `${diffMonths} month${diffMonths !== 1 ? 's' : ''}`;
+        } else {
+            duration = 'Warranty has expired';
+        }
+        
+        return {
+            startDate: invoiceDate,
+            status: isActive ? 'Active' : 'Inactive',
+            duration: duration
+        };
+    };
     return (
         <div className="px-4 " style={{ fontSize: "0.75rem" }}>
             <Breadcrumb title="Purchase Spare Parts" />
@@ -818,6 +876,19 @@ export default function PurchaseSparepartsPage() {
                                                 >
                                                     <i className="bi bi-arrow-return-left"></i>
                                                 </Button>
+                                                {/* <Button
+                                                    variant="outline-info"
+                                                    size="sm"
+                                                    className="p-1"
+                                                    onClick={() => handleShowWarranty(purchase)}
+                                                    style={{
+                                                        borderColor: "#2E3A59",
+                                                        color: "#2E3A59",
+                                                        backgroundColor: "transparent",
+                                                    }}
+                                                    >
+                                                    <i className="bi bi-shield-check"></i>
+                                                </Button> */}
                                             </div>
 
                                         </td>
@@ -983,6 +1054,21 @@ export default function PurchaseSparepartsPage() {
                                                 )}`;
                                                 setInvoiceDate(formatted);
                                                 setShowCalendar(false);
+                                                // Auto-calculate warranty dates when invoice date changes
+                                                if (hasObdBoard()) {
+                                                const warrantyEndDate = new Date(safeDate);
+                                                warrantyEndDate.setFullYear(
+                                                    warrantyEndDate.getFullYear() + 1
+                                                );
+                                                const formattedEndDate = `${warrantyEndDate.getFullYear()}-${String(
+                                                    warrantyEndDate.getMonth() + 1
+                                                ).padStart(2, "0")}-${String(
+                                                    warrantyEndDate.getDate()
+                                                ).padStart(2, "0")}`;
+
+                                                setWarrantyStartDate(formatted);
+                                                setWarrantyEndDate(formattedEndDate);
+                                                }
                                             }}
                                             onCancel={() => setShowCalendar(false)}
                                             allowFuture={false}
@@ -1050,14 +1136,15 @@ export default function PurchaseSparepartsPage() {
                                 </h6>
                                 <button
                                     type="button"
+                                    className="add-row-btn"
                                     onClick={handleAddRow}
                                     disabled={
                                         sparePartsRows.length >= availableSpareparts.length
                                     }
                                     style={{
-                                        border: "1px solid #C7E6D1",
-                                        backgroundColor: "#F1FCF6",
-                                        color: "#1F9254",
+                                        backgroundColor: "#2FA64F",
+                                        borderColor: "#2FA64F",
+                                        color: "#fff",
                                         padding: "6px 12px",
                                         fontSize: "14px",
                                         borderRadius: "6px",
@@ -1068,201 +1155,177 @@ export default function PurchaseSparepartsPage() {
                                         cursor:
                                             sparePartsRows.length >= availableSpareparts.length
                                                 ? "not-allowed"
-                                                : "pointer"
-                                    }}
+                                                : "pointer",
+                                            minWidth: "90px",
+                                            height: "28px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                        }}
                                 >
                                     + Add Row
                                 </button>
                             </div>
-
-                            <div
-                                style={{
-                                    border: "1px solid #D3DBD5",
-                                    borderRadius: "6px",
-                                    overflow: "hidden",
-                                    backgroundColor: "#fff"
-                                }}
-                            >
-                                <table
-                                    className="table mb-0"
-                                    style={{ tableLayout: "fixed", marginBottom: 0 }}
-                                >
-                                    <thead style={{ backgroundColor: "#F8F9FA" }}>
-                                        <tr>
-                                            <th
-                                                style={{
-                                                    textAlign: "left",
-                                                    padding: "12px",
-                                                    backgroundColor: "#F3F4F6",
-                                                    borderBottom: "1px solid #D3DBD5",
-                                                    fontWeight: 600,
-                                                    fontSize: "15px"
-                                                }}
-                                            >
-                                                Sparepart Name
-                                            </th>
-                                            <th
-                                                style={{
-                                                    textAlign: "left",
-                                                    padding: "12px",
-                                                    backgroundColor: "#F3F4F6",
-                                                    borderBottom: "1px solid #D3DBD5",
-                                                    fontWeight: 600,
-                                                    fontSize: "15px"
-                                                }}
-                                            >
-                                                Quantity
-                                            </th>
-                                            <th
-                                                style={{
-                                                    width: "40px",
-                                                    padding: "12px",
-                                                    backgroundColor: "#F3F4F6",
-                                                    borderBottom: "1px solid #D3DBD5"
-                                                }}
-                                            ></th>
-                                        </tr>
+                            <div style={{ border: "1px solid #D3DBD5", borderRadius: "6px", overflow: "hidden" }}>
+                                <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                                <table className="custom-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}>
+                                    <thead>
+                                    <tr>
+                                        <th style={{ textAlign: "left", padding: "12px", backgroundColor: "#2E3A59", borderBottom: "1px solid #D3DBD5", fontWeight: 600, fontSize: "14px" }}>Sparepart Name</th>
+                                        <th style={{ textAlign: "left", padding: "12px", backgroundColor: "#2E3A59", borderBottom: "1px solid #D3DBD5", fontWeight: 600, fontSize: "14px" }}>Quantity</th>
+                                        <th style={{ width: "40px", padding: "12px", backgroundColor: "#2E3A59", borderBottom: "1px solid #D3DBD5" }}></th>
+                                    </tr>
                                     </thead>
                                     <tbody>
-                                        {sparePartsRows.length > 0 ? (
-                                            sparePartsRows.map((row, index) => (
-                                                <tr key={index}>
-                                                    <td>
-                                                        <Form.Select
-                                                            className="shadow-none"
-                                                            name={`sparepart-${index}`}
-                                                            required
-                                                            value={row.sparepart_id}
-                                                            onChange={(e) =>
-                                                                handleRowChange(
-                                                                    index,
-                                                                    "sparepart_id",
-                                                                    e.target.value
-                                                                )
-                                                            }
-                                                            isInvalid={
-                                                                !!formErrors[`sparepart-${index}`]
-                                                            }
-                                                            style={{
-                                                                fontSize: "14px",
-                                                                border: "none",
-                                                                outline: "none",
-                                                                boxShadow: "none",
-                                                                backgroundColor: "transparent",
-                                                                height: "38px"
-                                                            }}
-                                                        >
-                                                            <option value="">Select Spare part</option>
-                                                            {availableSpareparts
-                                                                .filter(
-                                                                    (sparepart) =>
-                                                                        row.sparepart_id ===
-                                                                        String(sparepart.id) ||
-                                                                        !sparePartsRows.some(
-                                                                            (r, i) =>
-                                                                                i !== index &&
-                                                                                String(r.sparepart_id) ===
-                                                                                String(sparepart.id)
-                                                                        )
-                                                                )
-                                                                .map((sparepart) => (
-                                                                    <option
-                                                                        key={sparepart.id}
-                                                                        value={sparepart.id}
-                                                                    >
-                                                                        {sparepart.name}
-                                                                    </option>
-                                                                ))}
-                                                        </Form.Select>
-                                                        <Form.Control.Feedback
-                                                            type="invalid"
-                                                            className="d-block mt-0"
-                                                        >
-                                                            {formErrors[`sparepart-${index}`]}
-                                                        </Form.Control.Feedback>
-                                                    </td>
-                                                    <td>
-                                                        <Form.Control
-                                                            type="number"
-                                                            name={`quantity-${index}`}
-                                                            placeholder="Enter Quantity"
-                                                            required
-                                                            min="1"
-                                                            value={row.quantity}
-                                                            onChange={(e) =>
-                                                                handleRowChange(
-                                                                    index,
-                                                                    "quantity",
-                                                                    e.target.value
-                                                                )
-                                                            }
-                                                            isInvalid={
-                                                                !!formErrors[`quantity-${index}`]
-                                                            }
-                                                            style={{
-                                                                fontSize: "14px",
-                                                                border: "none",
-                                                                outline: "none",
-                                                                boxShadow: "none",
-                                                                backgroundColor: "transparent",
-                                                                height: "38px"
-                                                            }}
-                                                        />
-                                                        <Form.Control.Feedback
-                                                            type="invalid"
-                                                            className="d-block mt-0"
-                                                        >
-                                                            {formErrors[`quantity-${index}`]}
-                                                        </Form.Control.Feedback>
-                                                    </td>
-                                                    <td className="text-center align-middle">
-                                                        <Button
-                                                            variant="light"
-                                                            size="sm"
-                                                            onClick={() => handleRemoveRow(index)}
-                                                            className="p-1"
-                                                            style={{
-                                                                backgroundColor: "#FFEDED",
-                                                                borderRadius: "50%",
-                                                                width: "30px",
-                                                                height: "30px",
-                                                                padding: 0,
-                                                                lineHeight: 1
-                                                            }}
-                                                        >
-                                                            <BsDashLg
-                                                                style={{
-                                                                    color: "red",
-                                                                    fontSize: "1.2rem"
-                                                                }}
-                                                            />
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td
-                                                    colSpan="3"
-                                                    className="text-center text-muted py-3"
-                                                >
-                                                    No spare parts added yet.
-                                                </td>
-                                            </tr>
-                                        )}
+                                    {sparePartsRows.length > 0 ? sparePartsRows.map((row, index) => {
+                                        const selectedIds = sparePartsRows.filter((_, i) => i !== index).map(r => String(r.sparepart_id));
+                                        const availableOptions = availableSpareparts.filter(sp => String(row.sparepart_id) === String(sp.id) || !selectedIds.includes(String(sp.id)));
+                                        return (
+                                        <tr key={index}>
+                                            <td style={{ padding: "12px" }}>
+                                            <Form.Select
+                                                name={`sparepart-${index}`}
+                                                value={row.sparepart_id}
+                                                onChange={(e) => handleRowChange(index, "sparepart_id", e.target.value)}
+                                                isInvalid={!!formErrors[`sparepart-${index}`]}
+                                                style={{ border: "none", backgroundColor: "#fff", padding: "5px", fontSize: "14px", borderRadius: "6px" }}
+                                            >
+                                                <option value="" disabled>Select Spare Part</option>
+                                                {availableOptions.map(sparepart => (
+                                                <option key={sparepart.id} value={sparepart.id}>{sparepart.name}</option>
+                                                ))}
+                                            </Form.Select>
+                                            <Form.Control.Feedback type="invalid" className="d-block mt-0">
+                                                {formErrors[`sparepart-${index}`]}
+                                            </Form.Control.Feedback>
+                                            </td>
+                                            <td style={{ padding: "12px" }}>
+                                            <Form.Control
+                                                type="number"
+                                                name={`quantity-${index}`}
+                                                placeholder="Enter Quantity"
+                                                min="1"
+                                                value={row.quantity}
+                                                onChange={(e) => handleRowChange(index, "quantity", e.target.value)}
+                                                isInvalid={!!formErrors[`quantity-${index}`]}
+                                                style={{ border: "none", backgroundColor: "#fff", borderRadius: "6px" }}
+                                            />
+                                            <Form.Control.Feedback type="invalid" className="d-block mt-0">
+                                                {formErrors[`quantity-${index}`]}
+                                            </Form.Control.Feedback>
+                                            </td>
+                                            <td className="text-center align-middle" style={{ padding: "5px" }}>
+                                            <Button variant="link" size="sm" onClick={() => handleRemoveRow(index)} className="p-0"
+                                                style={{ backgroundColor: "#FFEBEBC9", borderRadius: "50%", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                <BsDashLg style={{ color: "red", fontSize: "1rem" }} />
+                                            </Button>
+                                            </td>
+                                        </tr>
+                                        )
+                                    }) : (
+                                        <tr>
+                                        <td colSpan="3" className="text-center text-muted py-3">No spare parts added yet.</td>
+                                        </tr>
+                                    )}
                                     </tbody>
                                 </table>
-                            </div>
-                            {!!formErrors.items && (
-                                <div className="invalid-feedback d-block mt-1">
-                                    {formErrors.items}
                                 </div>
+                            </div>
+                            {!!formErrors.items && <div className="invalid-feedback d-block mt-1">{formErrors.items}</div>}
+                            </div>
+                            {hasObdBoard() && (
+                            <div className="mb-3">
+                                <h6 className="fw-semibold mb-2" style={{ color: "#393C3AE5" }}>
+                                Warranty Details(OBD Board)
+                                </h6>
+                                <div style={{ border: "1px solid #D3DBD5", borderRadius: "6px", overflow: "hidden" }}>
+                                <table
+                                    className="custom-table"
+                                    style={{
+                                    width: "100%",
+                                    tableLayout: "fixed",
+                                    borderCollapse: "collapse",
+                                    }}
+                                >
+                                    <thead>
+                                    <tr>
+                                        <th
+                                        style={{
+                                            textAlign: "left",
+                                            padding: "12px",
+                                            backgroundColor: "#2E3A59",
+                                            color: "white",
+                                            borderBottom: "1px solid #D3DBD5",
+                                            fontWeight: 600,
+                                            fontSize: "14px",
+                                        }}
+                                        >
+                                        Warranty Start Date
+                                        </th>
+                                        <th
+                                        style={{
+                                            textAlign: "left",
+                                            padding: "12px",
+                                            backgroundColor: "#2E3A59",
+                                            color: "white",
+                                            borderBottom: "1px solid #D3DBD5",
+                                            fontWeight: 600,
+                                            fontSize: "14px",
+                                        }}
+                                        >
+                                        Status
+                                        </th>
+                                        <th
+                                        style={{
+                                            textAlign: "left",
+                                            padding: "12px",
+                                            backgroundColor: "#2E3A59",
+                                            color: "white",
+                                            borderBottom: "1px solid #D3DBD5",
+                                            fontWeight: 600,
+                                            fontSize: "14px",
+                                        }}
+                                        >
+                                        Warranty Time
+                                        </th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <td style={{ padding: "12px" }}>
+                                        {calculateWarrantyDetails().startDate
+                                            ? new Date(
+                                                calculateWarrantyDetails().startDate + "T00:00:00"
+                                            ).toLocaleDateString("en-GB")
+                                            : "Select invoice date first"}
+                                        </td>
+                                        <td style={{ padding: "12px" }}>
+                                        <span
+                                            className={`badge ${
+                                            calculateWarrantyDetails().status === "Active"
+                                                ? "bg-success"
+                                                : "bg-danger"
+                                            }`}
+                                            style={{ fontSize: "12px", padding: "6px 12px" }}
+                                        >
+                                            {calculateWarrantyDetails().status}
+                                        </span>
+                                        </td>
+                                        <td style={{ padding: "12px" }}>
+                                        {calculateWarrantyDetails().duration}
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                                </div>
+                            </div>
                             )}
-                        </div>
-
-                        {/* Save Button */}
-                        <div className="d-flex justify-content-end gap-2 mt-3">
-                            <Button className="btn-common btn-cancel" variant="light" onClick={() => setShowForm(false)}>
+                            <div className="d-flex justify-content-end gap-2 mt-3">
+                            <Button
+                                className="btn-common btn-cancel"
+                                variant="light"
+                                onClick={() => setShowForm(false)}
+                            >
                                 Cancel
                             </Button>
                             <Button
@@ -1272,10 +1335,10 @@ export default function PurchaseSparepartsPage() {
                             >
                                 {editingPurchase ? "Update" : "Save"}
                             </Button>
-                        </div>
-                    </Form>
-                </Offcanvas.Body>
-            </Offcanvas>
+                            </div>
+                        </Form>
+                        </Offcanvas.Body>
+                    </Offcanvas>
 
             {/* Return Form */}
             <Offcanvas

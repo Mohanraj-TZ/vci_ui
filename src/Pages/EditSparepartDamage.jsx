@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Row, Col } from 'react-bootstrap';
+import { Form, Button, Row, Col, Spinner } from 'react-bootstrap';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { API_BASE_URL } from "../api";
 
-export default function AddSparepartsDamagedItemPage() {
+export default function EditSparepartsDamagedItemPage() {
   const navigate = useNavigate();
+  const { id } = useParams(); // get damaged item ID from URL
+
   const [formData, setFormData] = useState({
-     sparepart_purchase_item_id: '' ,  // display name or ID if needed
+    sparepart_purchase_item_id: '',
     quantity: '',
     remarks: '',
     status: 'pending',
@@ -21,23 +23,48 @@ export default function AddSparepartsDamagedItemPage() {
 
   const [formErrors, setFormErrors] = useState({});
   const [spareparts, setSpareparts] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Fetch spareparts for dropdown
   useEffect(() => {
     const fetchSpareparts = async () => {
-      setLoading(true);
       try {
         const res = await axios.get(`${API_BASE_URL}/get-spareparts`);
         if (res.data.success) setSpareparts(res.data.data);
       } catch {
         toast.error("Failed to load spareparts");
-      } finally {
-        setLoading(false);
       }
     };
     fetchSpareparts();
   }, []);
+
+  // Fetch damaged item data
+  useEffect(() => {
+    const fetchDamagedItem = async () => {
+      try {
+       const res = await axios.get(`${API_BASE_URL}/damagedSp-items/${id}/edit`);
+
+        if (res.data.success) {
+          const item = res.data.data;
+          setFormData({
+            sparepart_purchase_item_id: item.sparepart_purchase_item_id,
+            quantity: item.quantity,
+            remarks: item.remarks || '',
+            status: item.status || 'pending',
+            warranty_start_date: item.warranty_start_date || '',
+            warranty_end_date: item.warranty_end_date || '',
+            warranty_status: item.warranty_status || '',
+            transportation: item.transportation || ''
+          });
+        }
+      } catch (error) {
+        toast.error("Failed to load damaged item");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDamagedItem();
+  }, [id]);
 
   const handleChange = e => {
     const { name, value } = e.target;
@@ -48,25 +75,27 @@ export default function AddSparepartsDamagedItemPage() {
   const handleSubmit = async e => {
     e.preventDefault();
     const errors = {};
-  if (!formData.sparepart_purchase_item_id) 
-    errors.sparepart_purchase_item_id = 'Please select a sparepart';
+    if (!formData.sparepart_purchase_item_id) errors.sparepart_purchase_item_id = 'Please select a sparepart';
     if (!formData.quantity || formData.quantity < 1) errors.quantity = 'Quantity must be at least 1';
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
     try {
-      await axios.post(`${API_BASE_URL}/spareparts-damaged-items`, formData);
-      toast.success('Sparepart damaged item added successfully!');
+    await axios.put(`${API_BASE_URL}/damagedSp-items/${id}`, formData);
+
+      toast.success('Damaged sparepart updated successfully!');
       setTimeout(() => navigate('/sparepartDamage'), 1000);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save item');
+      toast.error(error.response?.data?.message || 'Failed to update item');
     }
   };
+
+  if (loading) return <Spinner animation="border" />;
 
   return (
     <div className="p-4" style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4 className="mb-0">Add Sparepart Damaged Item</h4>
+        <h4 className="mb-0">Edit Sparepart Damaged Item</h4>
         <Button variant="outline-secondary" onClick={() => navigate('/sparepartDamage')}>
           <i className="bi bi-arrow-left" /> Back
         </Button>
@@ -76,19 +105,18 @@ export default function AddSparepartsDamagedItemPage() {
         <Row className="mb-3">
           <Col md={6}>
             <Form.Label>Sparepart</Form.Label>
-          <Form.Select
-  name="sparepart_purchase_item_id"
-  value={formData.sparepart_purchase_item_id}
-  onChange={handleChange}
->
-  <option value="">Select Sparepart</option>
-  {spareparts.map(sp => (
-    <option key={sp.id} value={sp.id}>
-      {sp.name} (Available: {sp.quantity})
-    </option>
-  ))}
-</Form.Select>
-
+            <Form.Select
+              name="sparepart_purchase_item_id"
+              value={formData.sparepart_purchase_item_id}
+              onChange={handleChange}
+            >
+              <option value="">Select Sparepart</option>
+              {spareparts.map(sp => (
+                <option key={sp.id} value={sp.id}>
+                  {sp.name} (Available: {sp.quantity})
+                </option>
+              ))}
+            </Form.Select>
             {formErrors.sparepart_purchase_item_id && <div className="text-danger small">{formErrors.sparepart_purchase_item_id}</div>}
           </Col>
 
@@ -125,7 +153,7 @@ export default function AddSparepartsDamagedItemPage() {
 
         <div className="d-flex justify-content-end mt-3">
           <Button variant="secondary" className="me-2" onClick={() => navigate('/spareparts-damaged-items-list')}>Cancel</Button>
-          <Button type="submit" variant="success">Save</Button>
+          <Button type="submit" variant="success">Update</Button>
         </div>
       </Form>
 

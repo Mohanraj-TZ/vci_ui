@@ -24,6 +24,8 @@ const formatDateForInput = (dateString) => {
 export default function EditService() {
     const { id } = useParams();
     const navigate = useNavigate();
+// const [errors, setErrors] = useState({});
+
 
     const [formData, setFormData] = useState({
         challan_no: "",
@@ -51,11 +53,11 @@ const issueOptions = [
 
     const [items, setItems] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [statusOptions] = useState([
-        { value: "pending", label: "Pending" },
-        { value: "in_progress", label: "In Progress" },
-        { value: "completed", label: "Completed" },
-    ]);
+const [statusOptions] = useState([
+  { value: "in_transit", label: "In Transit" },
+  { value: "completed", label: "Completed" },
+]);
+
     const [testingStatusOptions] = useState([
         { value: "pending", label: "Pending" },
         { value: "in_progress", label: "In Progress" },
@@ -115,8 +117,25 @@ const issueOptions = [
         fetchData();
     }, [id]);
 
-    const handleChange = (e) =>
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+const handleChange = (e) => {
+  const { name, value } = e.target;
+  let updatedFormData = { ...formData, [name]: value };
+
+  // Auto-update status
+  if (name === "sent_date" && value) {
+    updatedFormData.status = "in_transit";
+  }
+  if (name === "received_date" && value) {
+    updatedFormData.status = "completed";
+  }
+
+  setFormData(updatedFormData);
+
+  //   if (value.trim() !== "") {
+  //   setErrors((prev) => ({ ...prev, [name]: "" }));
+  // }
+};
+
 
     const handleSelectChange = (e) => {
         const { name, value } = e.target;
@@ -159,6 +178,26 @@ const issueOptions = [
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+
+  // let newErrors = {};
+
+  
+// if (!formData.challan_no.trim()) newErrors.challan_no = "Challan No is required";
+//  if (formData.challan_date && formData.sent_date && formData.challan_date !== formData.sent_date) {
+//       newErrors.sent_date = "Sent Date must match Challan Date";
+//     }
+// if (!formData.courier_name.trim()) newErrors.courier_name = "Courier Name is required";
+// if (!formData.status) newErrors.status = "Status is required";
+// if (!formData.received_date) newErrors.received_date = "Received Date is required";
+// if (!formData.from_place.trim()) newErrors.from_place = "From Place is required";
+// if (!formData.to_place.trim()) newErrors.to_place = "To Place is required";
+// if (!formData.quantity) newErrors.quantity = "Quantity is required";
+// if (items.length === 0) newErrors.items = "At least one item is required";
+//   setErrors(newErrors);
+
+//   // If errors exist, stop
+//   if (Object.keys(newErrors).length > 0) return;
 
         const cleanItems = items.map(({ category_name, ...rest }) => rest);
         const payload = { ...formData, items: cleanItems };
@@ -219,7 +258,10 @@ const issueOptions = [
                             name="challan_no"
                             value={formData.challan_no}
                             onChange={handleChange}
+
                         />
+
+
                     </Col>
                     <Col md={4}>
                         <Form.Label>Challan Date</Form.Label>
@@ -228,7 +270,9 @@ const issueOptions = [
                             name="challan_date"
                             value={formData.challan_date}
                             onChange={handleChange}
+  
                         />
+
                     </Col>
                     <Col md={4}>
                         <Form.Label>Courier Name</Form.Label>
@@ -236,27 +280,32 @@ const issueOptions = [
                             name="courier_name"
                             value={formData.courier_name}
                             onChange={handleChange}
+
                         />
+
                     </Col>
                 </Row>
 
                 <Row className="mb-3">
-                    <Col md={4}>
-                        <Form.Label>Status</Form.Label>
-                        <Form.Control
-                            as="select"
-                            name="status"
-                            value={formData.status}
-                            onChange={handleSelectChange}
-                        >
-                            <option value="">Select Status</option>
-                            {statusOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </Form.Control>
-                    </Col>
+             <Col md={4}>
+  <Form.Label>Status</Form.Label>
+  <Form.Select
+    name="status"
+    value={formData.status}
+    onChange={(e) => handleSelectChange(e)}
+    disabled={formData.status === "in_transit" || formData.status === "completed"}
+  >
+    <option value="">Select Status</option>
+    {statusOptions
+      .filter((option) => option.value !== "completed" || formData.received_date)
+      .map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+  </Form.Select>
+</Col>
+
                     <Col md={4}>
                         <Form.Label>Sent Date</Form.Label>
                         <Form.Control
@@ -285,7 +334,9 @@ const issueOptions = [
                             name="quantity"
                             value={formData.quantity}
                             onChange={handleChange}
+  
                         />
+
                     </Col>
                     <Col md={4}>
                         <Form.Label>From Place</Form.Label>

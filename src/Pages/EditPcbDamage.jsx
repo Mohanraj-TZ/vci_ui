@@ -2,20 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Form, Button, Row, Col, Spinner } from 'react-bootstrap';
 import Select from 'react-select';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { API_BASE_URL } from "../api";
 
-export default function AddDamagedItemPage() {
+export default function EditDamagedItemPage() {
   const navigate = useNavigate();
+  const { id } = useParams(); // Damaged item ID from route
 
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoiceNo, setSelectedInvoiceNo] = useState('');
   const [serialNumbers, setSerialNumbers] = useState([]);
   const [formData, setFormData] = useState({
     invoice_no: '',
-    pcb_board_purchase_item_id: '', // stores selected serial item ID
+    pcb_board_purchase_item_id: '',
     serial_no: '',
     quantity: 1,
     remarks: '',
@@ -24,7 +25,7 @@ export default function AddDamagedItemPage() {
   const [formErrors, setFormErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch invoices
+  // Fetch all invoices for dropdown
   useEffect(() => {
     const fetchInvoices = async () => {
       try {
@@ -37,29 +38,38 @@ export default function AddDamagedItemPage() {
     fetchInvoices();
   }, []);
 
-  // Fetch serial numbers when invoice changes
+  // Fetch existing damaged item data
   useEffect(() => {
-    if (!selectedInvoiceNo) {
-      setSerialNumbers([]);
-      setFormData(prev => ({ ...prev, serial_no: '', pcb_board_purchase_item_id: '' }));
-      return;
-    }
-
-    setIsLoading(true);
-    const fetchInvoiceDetails = async () => {
+    const fetchDamagedItem = async () => {
+      setIsLoading(true);
       try {
-        const response = await axios.get(`${API_BASE_URL}/pcb-purchases/${selectedInvoiceNo}`);
-        const items = response.data.items || [];
-        setSerialNumbers(items.map(item => ({ value: item.id, label: item.serial_no }))); // for react-select
-        setFormData(prev => ({ ...prev, serial_no: '', pcb_board_purchase_item_id: '', invoice_no: selectedInvoiceNo }));
+        const response = await axios.get(`${API_BASE_URL}/damaged-items/${id}/edit`);
+        const data = response.data.data;
+
+        setFormData({
+          invoice_no: data.invoice_no,
+          pcb_board_purchase_item_id: data.pcb_board_purchase_item_id,
+          serial_no: data.serial_no,
+          quantity: data.quantity,
+          remarks: data.remarks,
+          status: data.status,
+        });
+        setSelectedInvoiceNo(data.invoice_no);
+
+        // Fetch serial numbers for this invoice
+        const invoiceResponse = await axios.get(`${API_BASE_URL}/pcb-purchases/${data.invoice_no}`);
+        const items = invoiceResponse.data.items || [];
+        setSerialNumbers(items.map(item => ({ value: item.id, label: item.serial_no })));
+
       } catch (error) {
-        toast.error('Failed to fetch serial numbers.');
+        toast.error('Failed to fetch damaged item details.');
       } finally {
         setIsLoading(false);
       }
     };
-    fetchInvoiceDetails();
-  }, [selectedInvoiceNo]);
+
+    fetchDamagedItem();
+  }, [id]);
 
   const handleChange = (e, action) => {
     if (action?.name === 'serial_no') {
@@ -70,6 +80,23 @@ export default function AddDamagedItemPage() {
       }));
     } else if (action?.name === 'invoice_no') {
       setSelectedInvoiceNo(e.value);
+      setFormData(prev => ({ ...prev, invoice_no: e.value, serial_no: '', pcb_board_purchase_item_id: '' }));
+
+      // Fetch serial numbers for selected invoice
+      const fetchInvoiceSerials = async () => {
+        setIsLoading(true);
+        try {
+          const response = await axios.get(`${API_BASE_URL}/pcb-purchases/${e.value}`);
+          const items = response.data.items || [];
+          setSerialNumbers(items.map(item => ({ value: item.id, label: item.serial_no })));
+        } catch (error) {
+          toast.error('Failed to fetch serial numbers.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchInvoiceSerials();
+
     } else {
       const { name, value } = e.target;
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -88,21 +115,21 @@ export default function AddDamagedItemPage() {
     if (Object.keys(errors).length > 0) return;
 
     try {
-      await axios.post(`${API_BASE_URL}/pcb-purchases/damaged-items`, formData);
-      toast.success('Damaged item added successfully!');
+      await axios.put(`${API_BASE_URL}/damaged-items/${id}`, formData);
+      toast.success('Damaged item updated successfully!');
       setTimeout(() => navigate('/purchaseDamage'), 1000);
     } catch (error) {
       if (error.response?.status === 422 && error.response.data.errors) {
         setFormErrors(error.response.data.errors);
       }
-      toast.error(error.response?.data?.message || 'Failed to save damaged item');
+      toast.error(error.response?.data?.message || 'Failed to update damaged item');
     }
   };
 
   return (
     <div className="p-4" style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4 className="mb-0">Add Damaged Item</h4>
+        <h4 className="mb-0">Edit Damaged Item</h4>
         <Button variant="outline-secondary" onClick={() => navigate('/purchaseDamage')}>
           <i className="bi bi-arrow-left" /> Back
         </Button>
@@ -164,9 +191,18 @@ export default function AddDamagedItemPage() {
 
         <div className="d-flex justify-content-end">
           <Button variant="secondary" className="me-2" onClick={() => navigate('/damaged-items-list')}>Cancel</Button>
-          <Button type="submit" variant="success">Save</Button>
+          <Button type="submit" variant="success">Update</Button>
         </div>
       </Form>
+
+      {isLoading && (
+        <div className="d-flex justify-content-center my-3">
+          <Spinner animation="border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </Spinner>
+          <p className="ms-2">Loading serial numbers...</p>
+        </div>
+      )}
 
       <ToastContainer position="top-right" autoClose={3000} />
     </div>

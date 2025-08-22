@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button, Spinner, Card, Form } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
+import { useNavigate,useParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
@@ -22,6 +22,7 @@ export default function DamagedItemsListPage() {
   const [perPage, setPerPage] = useState(10);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
+  const { id } = useParams();
 
   useEffect(() => {
     fetchData();
@@ -40,28 +41,32 @@ export default function DamagedItemsListPage() {
   };
 
   const handleDelete = async (id) => {
-    const result = await MySwal.fire({
-      title: "Are you sure?",
-      text: "Do you really want to delete this item?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#2FA64F",
-      confirmButtonText: "Yes, delete it!",
-      customClass: { popup: "custom-compact" }
-    });
-    if (!result.isConfirmed) return;
+  const result = await MySwal.fire({
+    title: "Are you sure?",
+    text: "Do you really want to delete this item?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#2FA64F",
+    confirmButtonText: "Yes, delete it!",
+    customClass: { popup: "custom-compact" }
+  });
+  if (!result.isConfirmed) return;
 
-    try {
-      await axios.delete(`${API_BASE_URL}/sparepart-damaged-items/${id}`);
-      toast.success("Item deleted successfully!");
-      const newData = data.filter((item) => item.id !== id);
-      setData(newData);
-      if ((page - 1) * perPage >= newData.length && page > 1) setPage(page - 1);
-    } catch {
-      toast.error("Failed to delete item.");
-    }
-  };
+  try {
+
+    await axios.delete(`${API_BASE_URL}/damaged-delItems/${id}`);
+
+    toast.success("Item deleted successfully!");
+    const newData = data.filter((item) => item.id !== id);
+    setData(newData);
+
+    if ((page - 1) * perPage >= newData.length && page > 1) setPage(page - 1);
+  } catch {
+    toast.error("Failed to delete item.");
+  }
+};
+
 
   const handleSort = (field) => {
     const direction = sortField === field && sortDirection === "asc" ? "desc" : "asc";
@@ -143,10 +148,10 @@ export default function DamagedItemsListPage() {
 
                   { label: "Quantity", field: "quantity" },
               
-                  { label: "Status", field: "status" },
+                  // { label: "Status", field: "status" },
                
-                  { label: "Sent Date", field: "sent_date" },
-                  { label: "Received Date", field: "received_date" },
+                  // { label: "Sent Date", field: "sent_date" },
+                  // { label: "Received Date", field: "received_date" },
                   // { label: "Warranty Start", field: "warranty_start_date" },
                   // { label: "Warranty End", field: "warranty_end_date" },
                   // { label: "Warranty Status", field: "warranty_status" },
@@ -178,10 +183,10 @@ export default function DamagedItemsListPage() {
                      {/* <td>{item.invoice_no}</td> */}
                     <td>{item.quantity}</td>
                    
-                    <td>{item.status}</td>
+                    {/* <td>{item.status}</td>
                
                     <td>{item.sent_date}</td>
-                    <td>{item.received_date}</td>
+                    <td>{item.received_date}</td> */}
                     {/* <td>{item.warranty_start_date}</td>
                     <td>{item.warranty_end_date}</td>
                     <td>{item.warranty_status}</td> */}
@@ -189,7 +194,7 @@ export default function DamagedItemsListPage() {
                     <td className="text-center" style={{ width: "130px" }}>
                       <div className="d-flex justify-content-center">
                         <ActionButtons
-                          // onEdit={() => navigate(`/damaged-items/edit/${item.id}`)}
+                          onEdit={() => navigate(`/spareparts-damaged-items/${item.id}/edit`)}
                           onDelete={() => handleDelete(item.id)}
                         />
                       </div>

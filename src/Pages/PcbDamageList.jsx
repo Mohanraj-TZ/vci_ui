@@ -57,7 +57,7 @@ export default function DamagedItemsListPage() {
     if (!result.isConfirmed) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/damaged-items/${id}`);
+      await axios.delete(`${API_BASE_URL}/del-damaged-items/${id}`);
       toast.success("Item deleted successfully!");
       setItems(items.filter((i) => i.id !== id));
     } catch {
@@ -157,9 +157,9 @@ export default function DamagedItemsListPage() {
                   { label: "Invoice No", field: "invoice_no" },
                   { label: "Serial No", field: "serial_no" },
                   { label: "Quantity", field: "quantity" },
-                  { label: "Status", field: "status" },
-                  { label: "Sent Date", field: "sent_date" },
-                  { label: "Received Date", field: "received_date" },
+                  // { label: "Status", field: "status" },
+                  // { label: "Sent Date", field: "sent_date" },
+                  // { label: "Received Date", field: "received_date" },
                   { label: "Warranty Status", field: "warranty_status" },
                   { label: "Transportation", field: "transportation" },
                 ].map(({ label, field }) => (
@@ -203,9 +203,9 @@ export default function DamagedItemsListPage() {
                     <td>{item.invoice_no}</td>
                     <td>{item.serial_no}</td>
                     <td>{item.quantity}</td>
-                    <td>{item.status}</td>
+                    {/* <td>{item.status}</td>
                     <td>{item.sent_date}</td>
-                    <td>{item.received_date}</td>
+                    <td>{item.received_date}</td> */}
                     <td>{item.warranty_status}</td>
                     <td>{item.transportation}</td>
                     <td className="text-center">
@@ -213,6 +213,8 @@ export default function DamagedItemsListPage() {
                         // onEdit={() =>
                         //   navigate(`/damaged-items/edit/${item.id}`)
                         // }
+
+                          onEdit={() => navigate(`/damaged-items/edit/${item.id}`)}
                         onDelete={() => handleDelete(item.id)}
                       />
                     </td>

@@ -57,6 +57,10 @@ import AddPcbDamage from "./Pages/AddPcbDamage";
 import SparepartDamageList from "./Pages/SparepartDamageList";
 import AddSparepartDamage from "./Pages/AddSparepartDamage";
 
+import EditPcbDamage from "./Pages/EditPcbDamage";
+import EditSparepartDamage from "./Pages/EditSparepartDamage";
+
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('authToken'));
 
@@ -165,6 +169,10 @@ export default function App() {
 
           <Route path="sparepartDamage" element={<SparepartDamageList />} />
           <Route path="/damaged/add" element={<AddSparepartDamage />} />
+
+             <Route path="/damaged-items/edit/:id" element={<EditPcbDamage />} />
+
+               <Route path="/spareparts-damaged-items/:id/edit" element={<EditSparepartDamage />} />
 
         </Route>
 

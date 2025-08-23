@@ -42,7 +42,6 @@ const getTableInputStyles = (value, isInvalid) => {
 
 export default function ReturnSparePartsPage() {
     const [vendors, setVendors] = useState([]);
-    const [batches, setBatches] = useState([]);
     const [purchases, setPurchases] = useState([]);
     const [availableSpareparts, setAvailableSpareparts] = useState([]);
     const [returns, setReturns] = useState([]);
@@ -63,7 +62,6 @@ export default function ReturnSparePartsPage() {
 
     const [formData, setFormData] = useState({
         vendor_id: "",
-        batch_id: "",
         invoiceNo: "",
         notes: ""
     });
@@ -93,16 +91,14 @@ export default function ReturnSparePartsPage() {
     const fetchAllData = useCallback(async () => {
         setLoading(true);
         try {
-            const [vendorsRes, batchesRes, purchasesRes, sparepartsRes, returnsRes] = await Promise.all([
+            const [vendorsRes,  purchasesRes, sparepartsRes, returnsRes] = await Promise.all([
                 axios.get(`${API_BASE_URL}/vendors`, { headers: { Accept: "application/json" } }),
-                axios.get(`${API_BASE_URL}/batches`, { headers: { Accept: "application/json" } }),
                 axios.get(`${API_BASE_URL}/sparepart-purchases`, { headers: { Accept: "application/json" } }),
                 axios.get(`${API_BASE_URL}/spareparts`, { headers: { Accept: "application/json" } }),
                 axios.get(`${API_BASE_URL}/sparepart-returns`, { headers: { Accept: "application/json" } }),
             ]);
 
             setVendors(vendorsRes.data.data ?? vendorsRes.data ?? []);
-            setBatches(batchesRes.data.batches ?? batchesRes.data.data ?? batchesRes.data ?? []);
             setPurchases(purchasesRes.data.data ?? purchasesRes.data ?? []);
             setAvailableSpareparts(sparepartsRes.data.data ?? sparepartsRes.data ?? []);
             setReturns(returnsRes.data.data ?? returnsRes.data ?? []);
@@ -198,9 +194,7 @@ export default function ReturnSparePartsPage() {
             errors.return_date = "Return Date is required.";
         }
 
-        if (!payload.batch_id) {
-            errors.batch_id = "Batch is required.";
-        }
+     
 
         if (
             items.length === 0 ||
@@ -264,7 +258,6 @@ export default function ReturnSparePartsPage() {
             vendor_id: formData.vendor_id,
             invoice_no: formData.invoiceNo,
             return_date: returnDate,
-            batch_id: formData.batch_id,
             notes: formData.notes,
             items,
         };
@@ -294,7 +287,7 @@ export default function ReturnSparePartsPage() {
                 toast.success("Return added successfully");
             }
 
-            setFormData({ vendor_id: "", invoiceNo: "", batch_id: "", notes: "" });
+            setFormData({ vendor_id: "", invoiceNo: "",  notes: "" });
             setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
             setEditingReturn(null);
             setShowForm(false);
@@ -403,14 +396,13 @@ export default function ReturnSparePartsPage() {
             setReturnDate(returnedItem.return_date);
             setFormData({
                 vendor_id: String(returnedItem.vendor_id),
-                batch_id: String(returnedItem.batch_id),
                 invoiceNo: returnedItem.invoice_no,
                 notes: returnedItem.notes || ""
             });
         } else {
             setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
             setReturnDate(new Date().toISOString().split("T")[0]);
-            setFormData({ vendor_id: "", invoiceNo: "", batch_id: "", notes: "" });
+            setFormData({ vendor_id: "", invoiceNo: "",  notes: "" });
             setInvoiceSpareparts([]);
         }
         setShowForm(true);
@@ -624,7 +616,7 @@ export default function ReturnSparePartsPage() {
           setFormErrors({});
           setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
           setReturnDate(new Date().toISOString().split("T")[0]);
-          setFormData({ vendor_id: "", invoiceNo: "", batch_id: "", return_date: "", notes: "" });
+          setFormData({ vendor_id: "", invoiceNo: "",  return_date: "", notes: "" });
         }}
         placement="end"
         backdrop="static"
@@ -684,7 +676,7 @@ export default function ReturnSparePartsPage() {
                 </Form.Control.Feedback>
               </div>
 
-              <div className="col-6">
+              {/* <div className="col-6">
                 <Form.Label className="fw-semibold mb-1" style={{ color: "#393C3AE5" }}>Batch No. <span className="text-danger">*</span></Form.Label>
                 <Form.Select
                   name="batch_id"
@@ -704,11 +696,9 @@ export default function ReturnSparePartsPage() {
                 <Form.Control.Feedback type="invalid" className="d-block">
                   {formErrors.batch_id}
                 </Form.Control.Feedback>
-              </div>
-            </div>
+              </div> */}
 
             {/* Invoice & Return Date */}
-            <div className="row mb-3">
               {/* Purchase Invoice */}
               <div className="col-6">
                 <Form.Group controlId="invoiceNo">

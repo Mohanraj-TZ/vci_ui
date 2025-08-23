@@ -11,11 +11,13 @@ import {
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import * as XLSX from "xlsx";
 import { API_BASE_URL } from "../api";
 import Breadcrumb from "./Components/Breadcrumb";
 import Pagination from "./Components/Pagination";
 import Search from "./Components/Search";
+import * as XLSX from "xlsx";
+import Select from "react-select";
+import { useNavigate } from 'react-router-dom';
 
 export default function ProductPage() {
   const [products, setProducts] = useState([]);
@@ -31,16 +33,8 @@ export default function ProductPage() {
   const [sortDirection, setSortDirection] = useState("asc");
   const [importing, setImporting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
-
-  // Add the auth token to Axios headers
-  const authToken = localStorage.getItem('authToken');
-  if (authToken) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
-  } else {
-    console.error("No authentication token found. User is not logged in.");
-    // Optional: Redirect the user to the login page
-    // window.location.href = "/login";
-  }
+  const [pcbSerialOptions, setPcbSerialOptions] = useState([]);
+  const navigate = useNavigate();
 
   const downloadPurchaseAndCategoryExcel = (purchaseData, categoryData) => {
     const purchaseSheet = XLSX.utils.json_to_sheet(purchaseData);
@@ -55,32 +49,83 @@ export default function ProductPage() {
     id: null,
     category_id: "",
     serial_no: "",
+    fromserial_no: "",
+    toserial_no: "",
     manufacture_no: "",
     firmware_version: "",
     hsn_code: "",
-    sale_status: "Available",
+    sale_status: "Available", // Set default to 'Available'
     test: "",
   });
 
   const MySwal = withReactContent(Swal);
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
-
   const fetchAllData = async () => {
+    setLoading(true);
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error("Please log in to access this page.", { toastId: 'auth-error' });
+      navigate('/login');
+      setLoading(false);
+      return;
+    }
+    const authConfig = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+
     try {
-      setLoading(true);
       const [pRes, cRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/products`),
-        axios.get(`${API_BASE_URL}/categories`),
+        axios.get(`${API_BASE_URL}/products`, authConfig),
+        axios.get(`${API_BASE_URL}/categories`, authConfig),
       ]);
       setProducts(pRes.data || []);
       setCategories(cRes.data || []);
-    } catch {
-      toast.error("Failed to fetch data!");
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please log in again.", { toastId: 'auth-expired' });
+        navigate('/login');
+      } else {
+        toast.error("Failed to fetch data!");
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchPcbSerialNumbers();
+  }, []);
+
+  const fetchPcbSerialNumbers = async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      return;
+    }
+    const authConfig = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+    try {
+      const res = await axios.get(`${API_BASE_URL}/pcb-board-purchase-items`, {
+        ...authConfig,
+        params: { exclude_status: "Reserved" }
+      });
+      const formattedOptions = res.data.map(item => ({
+        value: item.serial_no,
+        label: item.serial_no
+      }));
+      setPcbSerialOptions(formattedOptions);
+    } catch (err) {
+      console.error("Failed to fetch PCB serial numbers:", err);
+      toast.error("Failed to fetch PCB serial numbers!");
     }
   };
 
@@ -90,6 +135,8 @@ export default function ProductPage() {
       id: null,
       category_id: "",
       serial_no: "",
+      fromserial_no: "",
+      toserial_no: "",
       manufacture_no: "",
       firmware_version: "",
       hsn_code: "",
@@ -101,7 +148,19 @@ export default function ProductPage() {
 
   const handleEdit = (product) => {
     setIsEditing(true);
-    setProductData({ ...product });
+    const cleanSerial = product.serial_no ? product.serial_no.trim() : "";
+    if (cleanSerial && !pcbSerialOptions.some(opt => opt.value === cleanSerial)) {
+      setPcbSerialOptions(prev => [
+        ...prev,
+        { value: cleanSerial, label: cleanSerial }
+      ]);
+    }
+    setProductData({
+      ...product,
+      serial_no: cleanSerial,
+      fromserial_no: product.fromserial_no ? product.fromserial_no.trim() : "",
+      toserial_no: product.toserial_no ? product.toserial_no.trim() : "",
+    });
     setShowModal(true);
   };
 
@@ -111,45 +170,41 @@ export default function ProductPage() {
       text: "Do you really want to delete this product?",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#2FA64F",
       confirmButtonText: "Yes, delete it!",
-      didOpen: (popup) => {
-        const title = popup.querySelector(".swal2-title");
-        const content = popup.querySelector(".swal2-html-container");
-        const confirmBtn = popup.querySelector(".swal2-confirm");
-        const cancelBtn = popup.querySelector(".swal2-cancel");
-        const container = popup.querySelector(".swal2-popup");
-
-        if (title) title.style.fontSize = "0.9rem";
-        if (content) content.style.fontSize = "0.8rem";
-        if (confirmBtn) confirmBtn.style.fontSize = "0.85rem";
-        if (cancelBtn) cancelBtn.style.fontSize = "0.85rem";
-
-        if (container) {
-          container.style.width = "150px";
-          container.style.height = "100px";
-          container.style.maxHeight = "90vh";
-          container.style.padding = "0.5rem 0.5rem";
-        }
-      },
+      customClass: {
+        popup: "custom-compact"
+      }
     });
 
     if (!result.isConfirmed) return;
 
+    const token = localStorage.getItem('authToken');
+    const authConfig = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+
     try {
-      await axios.delete(`${API_BASE_URL}/products/${id}`);
+      await axios.delete(`${API_BASE_URL}/products/${id}`, authConfig);
       toast.success("Product deleted!");
       fetchAllData();
-    } catch {
-      toast.error("Failed to delete product!");
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please log in again.", { toastId: 'auth-expired' });
+        navigate('/login');
+      } else {
+        toast.error("Failed to delete product!");
+      }
     }
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     let updatedData = { ...productData, [name]: value };
-
     if (name === "test") {
       if (value === "Issue") {
         updatedData.sale_status = "Reserved";
@@ -163,12 +218,10 @@ export default function ProductPage() {
   const validateForm = () => {
     const requiredFields = [
       { key: "category_id", label: "Category" },
-      { key: "serial_no", label: "Serial Number" },
       { key: "manufacture_no", label: "Manufacture Number" },
       { key: "firmware_version", label: "Firmware Version" },
       { key: "hsn_code", label: "HSN Code" },
       { key: "test", label: "Test Status" },
-      { key: "sale_status", label: "Sale Status" },
     ];
     for (const field of requiredFields) {
       const value = productData[field.key];
@@ -182,21 +235,70 @@ export default function ProductPage() {
 
   const handleSave = async () => {
     if (!validateForm()) return;
+    if (!isEditing) {
+      const serial = (productData.serial_no || "").trim();
+      const fromS = (productData.fromserial_no || "").trim();
+      const toS = (productData.toserial_no || "").trim();
+      const singleFilled = !!serial;
+      const anyRangeFilled = !!fromS || !!toS;
+      const fullRangeFilled = !!fromS && !!toS;
+
+      if (singleFilled && anyRangeFilled) {
+        toast.error("Please provide either Single Serial No OR From & To Serial, not both.");
+        return;
+      }
+      if (!singleFilled && !fullRangeFilled) {
+        toast.error("Please provide Single Serial No OR both From & To Serial.");
+        return;
+      }
+      if (!singleFilled && anyRangeFilled && !fullRangeFilled) {
+        toast.error("Please select both From Serial and To Serial.");
+        return;
+      }
+    }
+
+    const token = localStorage.getItem('authToken');
+    const authConfig = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+    const payload = productData;
+
     try {
       if (isEditing) {
-        await axios.put(`${API_BASE_URL}/products/${productData.id}`, productData);
-        toast.success("Product updated!");
+        await axios.put(`${API_BASE_URL}/products/${productData.id}`, payload, authConfig);
+        toast.success("Product updated successfully!");
       } else {
-        await axios.post(`${API_BASE_URL}/products`, productData);
-        toast.success("Product added!");
+        await axios.post(`${API_BASE_URL}/products`, payload, authConfig);
+        toast.success("Product added successfully!");
       }
-
       setShowModal(false);
       fetchAllData();
-    } catch {
-      toast.error("Failed to save product!");
+    } catch (error) {
+      console.error("Error saving product:", error);
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please log in again.", { toastId: 'auth-expired' });
+        navigate('/login');
+      } else {
+        toast.error(`Failed to save product: ${error.response?.data?.message || error.message}`);
+      }
     }
   };
+
+  const filteredProducts = products.filter((p) => {
+    const searchTerm = search.toLowerCase();
+    return (
+      p.serial_no?.toLowerCase().includes(searchTerm) ||
+      p.batch?.batch?.toLowerCase().includes(searchTerm) ||
+      p.category?.category?.toLowerCase().includes(searchTerm) ||
+      p.manufacture_no?.toLowerCase().includes(searchTerm) ||
+      p.firmware_version?.toLowerCase().includes(searchTerm) ||
+      p.hsn_code?.toLowerCase().includes(searchTerm) ||
+      p.test?.toLowerCase().includes(searchTerm) ||
+      p.sale_status?.toLowerCase().includes(searchTerm)
+    );
+  });
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -208,18 +310,28 @@ export default function ProductPage() {
   };
 
   const handleDownloadExcel = async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error("Please log in to download.", { toastId: 'auth-error' });
+      navigate('/login');
+      return;
+    }
+    const authConfig = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
     try {
-      const pcbRes = await axios.get(`${API_BASE_URL}/excelist`);
-      const catRes = await axios.get(`${API_BASE_URL}/categories`);
-      
+      const pcbRes = await axios.get(`${API_BASE_URL}/excelist`, authConfig);
+      const catRes = await axios.get(`${API_BASE_URL}/categories`, authConfig);
 
-const purchaseData = pcbRes.data.map((p) => ({
-  'Serial Number': p.serial_no || "",
-  'Invoice No': p.invoice_no || "",
-  'Invoice Date': p.invoice_date || "",
-  'Vendor': p.vendor || "",
-  'Category': p.category || "",
-}));
+      const purchaseData = pcbRes.data.map((p) => ({
+        'Serial Number': p.serial_no || "",
+        'Invoice No': p.invoice_no || "",
+        'Invoice Date': p.invoice_date || "",
+        'Vendor': p.vendor || "",
+        'Category': p.category || "",
+      }));
       const categoryData = catRes.data.map((c) => ({
         ID: c.id,
         Category: c.category,
@@ -229,51 +341,59 @@ const purchaseData = pcbRes.data.map((p) => ({
       toast.success("Excel file downloaded successfully!");
     } catch (err) {
       console.error("Download failed", err);
-      toast.error("Excel download failed!");
+      if (err.response?.status === 401) {
+        toast.error("Session expired. Please log in again.", { toastId: 'auth-expired' });
+        navigate('/login');
+      } else {
+        toast.error("Excel download failed!");
+      }
     }
   };
-  
-const handleDownloadSampleExcel = () => {
-    // Correctly map the data to get the category name.
-    // The `p.category?.category` syntax safely accesses the nested category name.
+
+  const handleDownloadSampleExcel = () => {
     const dataToExport = filteredProducts.map(p => ({
-        'Category Name': p.category?.category || "", // <-- Changed from category_id to 'Category Name' and p.category?.category
-        'Serial No': p.serial_no,
-        'Manufacture No': p.manufacture_no,
-        'Firmware Version': p.firmware_version,
-        'HSN Code': p.hsn_code,
-        'Sale Status': p.sale_status,
-        'Test': p.test,
+      'Category Name': p.category?.category || "",
+      'Serial No': p.serial_no,
+      'Manufacture No': p.manufacture_no,
+      'Firmware Version': p.firmware_version,
+      'HSN Code': p.hsn_code,
+      'Sale Status': p.sale_status,
+      'Test': p.test,
     }));
-
-    // Define the headers to match the new object keys.
     const headers = [
-        "Category Name", // <-- Changed the header to match
-        "Serial No",
-        "Manufacture No",
-        "Firmware Version",
-        "HSN Code",
-        "Sale Status",
-        "Test",
+      "Category Name",
+      "Serial No",
+      "Manufacture No",
+      "Firmware Version",
+      "HSN Code",
+      "Sale Status",
+      "Test",
     ];
-
-    // If there's no data, create a blank sheet with headers.
     if (dataToExport.length === 0) {
-        dataToExport.push({});
+      dataToExport.push({});
     }
-
     const ws = XLSX.utils.json_to_sheet(dataToExport, { header: headers });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Product_Sample");
     XLSX.writeFile(wb, "Product_Sample_Template.xlsx");
-
     toast.success("Sample Excel file downloaded successfully!");
-};
+  };
+
   const handleImport = async (event) => {
     const file = event.target.files[0];
-    if (!file) {
+    if (!file) return;
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error("Please log in to upload.", { toastId: 'auth-error' });
+      navigate('/login');
       return;
     }
+    const authConfig = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
 
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -290,7 +410,7 @@ const handleDownloadSampleExcel = () => {
           return;
         }
 
-        const res = await axios.post(`${API_BASE_URL}/products/bulk`, parsedData);
+        const res = await axios.post(`${API_BASE_URL}/products/bulk`, parsedData, authConfig);
         const { message, success_count, failed_count, failed } = res.data;
 
         toast.success(`${message} — ${success_count} products imported successfully`);
@@ -300,33 +420,22 @@ const handleDownloadSampleExcel = () => {
             toast.error(`Serial: ${item.serial_no} — ${item.error}`);
           });
         }
-
         setShowImportModal(false);
         fetchAllData();
       } catch (error) {
         console.error("Import error:", error);
-        toast.error("Something went wrong during import.");
+        if (error.response?.status === 401) {
+          toast.error("Session expired. Please log in again.", { toastId: 'auth-expired' });
+          navigate('/login');
+        } else {
+          toast.error("Something went wrong during import.");
+        }
       } finally {
         setImporting(false);
       }
     };
     reader.readAsBinaryString(file);
   };
-
-  let filteredProducts = products.filter((p) => {
-    const searchTerm = search.toLowerCase();
-    const isMatchingSearch = (
-      p.serial_no?.toLowerCase().includes(searchTerm) ||
-      p.category?.category?.toLowerCase().includes(searchTerm) ||
-      p.manufacture_no?.toLowerCase().includes(searchTerm) ||
-      p.firmware_version?.toLowerCase().includes(searchTerm) ||
-      p.hsn_code?.toLowerCase().includes(searchTerm) ||
-      p.test?.toLowerCase().includes(searchTerm) ||
-      p.sale_status?.toLowerCase().includes(searchTerm)
-    );
-    const isMatchingCategory = !selectedCategory || String(p.category_id) === String(selectedCategory);
-    return isMatchingSearch && isMatchingCategory;
-  });
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     if (!sortField) return 0;
@@ -346,34 +455,13 @@ const handleDownloadSampleExcel = () => {
   return (
     <div className="px-4" style={{ fontSize: "0.75rem" }}>
       <Breadcrumb title="Products" />
-      <Card className="border-0 shadow-sm rounded-3 p-3 mt-2 bg-white">
+      <Card className="border-0 shadow-sm rounded-3 p-2 px-4 mt-2 bg-white">
         <div className="row mb-2">
-          {/* NEW: Category filter dropdown */}
-          <div className="col-md-2 d-flex align-items-center mb-2 mb-md-0">
+          <div className="col-md-6 d-flex align-items-center mb-2 mb-md-0">
+            <label className="me-2 fw-semibold mb-0">Records Per Page:</label>
             <Form.Select
               size="sm"
-              value={selectedCategory}
-              onChange={(e) => {
-                setSelectedCategory(e.target.value);
-                setPage(1); // Reset to the first page when the filter changes
-              }}
-              style={{ fontSize: "0.8rem" }}
-            >
-              <option value="">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.category}
-                </option>
-              ))}
-            </Form.Select>
-          </div>
-          <div className="col-md-4 d-flex align-items-center mb-2 mb-md-0">
-            <label className="me-2 fw-semibold mb-0" style={{ fontSize: "0.8rem" }}>
-              Records Per Page:
-            </label>
-            <Form.Select
-              size="sm"
-              style={{ width: "90px", fontSize: "0.8rem", padding: "4px 8px" }}
+              style={{ width: "100px" }}
               value={perPage}
               onChange={(e) => {
                 setPerPage(Number(e.target.value));
@@ -387,95 +475,98 @@ const handleDownloadSampleExcel = () => {
               ))}
             </Form.Select>
           </div>
-          <div className="col-md-6 text-md-end" style={{ fontSize: "0.8rem" }}>
-            <div className="mt-2 d-inline-block mb-2">
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                className="me-2 p-1"
-                onClick={fetchAllData}
-                style={{ fontSize: "0.8rem", minWidth: "32px", height: "28px" }}
-              >
-                <i className="bi bi-arrow-clockwise"></i>
-              </Button>
-              {/* NEW: Download Sample button */}
-              <Button
-                size="sm"
-                onClick={handleDownloadSampleExcel}
-                style={{
-                  backgroundColor: "#2E3A59",
-                  borderColor: "#2E3A59",
-                  color: "#fff",
-                  padding: "0.25rem 0.5rem",
-                  fontSize: "0.8rem",
-                  minWidth: "90px",
-                  height: "28px",
-                }}
-                className="btn-success text-white me-2"
-              >
-                Download Sample
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setShowImportModal(true)}
-                style={{
-                  backgroundColor: "#2E3A59",
-                  borderColor: "#2E3A59",
-                  color: "#fff",
-                  padding: "0.25rem 0.5rem",
-                  fontSize: "0.8rem", 
-                  minWidth: "90px",
-                  height: "28px",
-                }}
-                className="btn-success text-white me-2"
-              >
-                Upload product
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleDownloadExcel}
-                style={{
-                  backgroundColor: "#2E3A59",
-                  borderColor: "#2E3A59",
-                  color: "#fff",
-                  padding: "0.25rem 0.5rem",
-                  fontSize: "0.8rem",
-                  minWidth: "90px",
-                  height: "28px",
-                }}
-                className="btn-success text-white me-2"
-              >
-                Download Excel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleAddNewClick}
-                style={{
-                  backgroundColor: "#2FA64F",
-                  borderColor: "#2FA64F",
-                  color: "#fff",
-                  padding: "0.25rem 0.5rem",
-                  fontSize: "0.8rem",
-                  minWidth: "90px",
-                  height: "28px",
-                }}
-                className="btn-success text-white"
-              >
-                + Add Product
-              </Button>
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
-              <Search
-                search={search}
-                setSearch={setSearch}
-                perPage={perPage}
-                setPerPage={setPerPage}
-                setPage={setPage}
-                style={{ fontSize: "0.8rem" }}
-              />
-            </div>
-          </div>
-        </div>
+<div className="col-md-6 text-md-end">
+    {/* Refresh and Add Product buttons on the top row */}
+    <div className="d-flex justify-content-end align-items-center mb-2 flex-wrap gap-2">
+        <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={fetchAllData}
+            style={{ fontSize: "0.8rem", minWidth: "32px", height: "28px" }}
+        >
+            <i className="bi bi-arrow-clockwise"></i>
+        </Button>
+        <Button
+            size="sm"
+            onClick={handleAddNewClick}
+            style={{
+                backgroundColor: '#2FA64F',
+                borderColor: '#2FA64F',
+                color: '#fff',
+                padding: '0.25rem 0.5rem',
+                fontSize: '0.8rem',
+                minWidth: '90px',
+                height: '28px',
+            }}
+            className="btn-success text-white"
+        >
+            + Add Product
+        </Button>
+    </div>
+    {/* All file-related buttons on the second row */}
+    <div className="d-flex justify-content-end align-items-center mb-2 flex-wrap gap-2">
+        <Button
+            size="sm"
+            onClick={handleDownloadSampleExcel}
+            style={{
+                backgroundColor: "#2E3A59",
+                borderColor: "#2E3A59",
+                color: "#fff",
+                padding: "0.25rem 0.5rem",
+                fontSize: "0.8rem",
+                minWidth: "90px",
+                height: "28px",
+            }}
+            className="btn-success text-white"
+        >
+            Download Sample
+        </Button>
+        <Button
+            size="sm"
+            onClick={handleDownloadExcel}
+            style={{
+                backgroundColor: "#2E3A59",
+                borderColor: "#2E3A59",
+                color: "#fff",
+                padding: "0.25rem 0.5rem",
+                fontSize: "0.8rem",
+                minWidth: "90px",
+                height: "28px",
+            }}
+            className="btn-success text-white"
+        >
+            Download Excel
+        </Button>
+        <Button
+            size="sm"
+            onClick={() => setShowImportModal(true)}
+            style={{
+                backgroundColor: "#2E3A59",
+                borderColor: "#2E3A59",
+                color: "#fff",
+                padding: "0.25rem 0.5rem",
+                fontSize: "0.8rem",
+                minWidth: "90px",
+                height: "28px",
+            }}
+            className="btn-success text-white"
+        >
+            Upload product
+        </Button>
+    </div>
+    {/* The search bar on the final row */}
+    <div className="d-flex justify-content-end align-items-center flex-wrap gap-2">
+        <Search
+            search={search}
+            setSearch={setSearch}
+            perPage={perPage}
+            setPerPage={setPerPage}
+            setPage={setPage}
+        />
+    </div>
+</div>
+ </div>
+
         <div className="table-responsive">
           <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
             <thead
@@ -549,7 +640,7 @@ const handleDownloadSampleExcel = () => {
               ) : paginatedProducts.length === 0 ? (
                 <tr>
                   <td colSpan="10" className="text-center py-3 text-muted" style={{ fontSize: "0.85rem" }}>
-                    No products found.
+                    <img src="/empty-box.png" alt="No products" style={{ width: "60px", opacity: 0.6 }} />
                   </td>
                 </tr>
               ) : (
@@ -600,6 +691,7 @@ const handleDownloadSampleExcel = () => {
             </tbody>
           </table>
         </div>
+
         <Pagination
           page={page}
           setPage={setPage}
@@ -607,6 +699,7 @@ const handleDownloadSampleExcel = () => {
           totalEntries={filteredProducts.length}
         />
       </Card>
+
       <Offcanvas
         show={showModal}
         onHide={() => setShowModal(false)}
@@ -615,10 +708,20 @@ const handleDownloadSampleExcel = () => {
         className="custom-offcanvas "
         style={{ fontSize: "0.85rem" }}
       >
-        <Offcanvas.Header closeButton>
+        <Offcanvas.Header className="border-bottom">
           <Offcanvas.Title className="fw-semibold">
-            {isEditing ? "Edit Product" : "Add New Product"}
+            {isEditing ? "Edit Product" : "Add Product"}
           </Offcanvas.Title>
+          <div className="ms-auto">
+            <Button
+              variant="outline-secondary"
+              onClick={() => setShowModal(false)}
+              className="rounded-circle border-0 d-flex align-items-center justify-content-center"
+              style={{ width: "32px", height: "32px" }}
+            >
+              <i className="bi bi-x-lg fs-6"></i>
+            </Button>
+          </div>
         </Offcanvas.Header>
         <Offcanvas.Body>
           <Form className="row g-3">
@@ -639,15 +742,78 @@ const handleDownloadSampleExcel = () => {
               </Form.Select>
             </Form.Group>
             <Form.Group className="col-md-6">
-              <Form.Label>Serial No.</Form.Label>
-              <Form.Control
-                name="serial_no"
-                value={productData.serial_no}
-                onChange={handleChange}
-                placeholder="Enter Serial No."
-                size="sm"
+              <Form.Label>Single Serial No.</Form.Label>
+              <Select
+                options={pcbSerialOptions}
+                value={
+                  pcbSerialOptions.find(opt => opt.value === productData.serial_no) || null
+                }
+                onChange={(selected) => {
+                  setProductData({
+                    ...productData,
+                    serial_no: selected ? selected.value : ""
+                  });
+                }}
+                isClearable
+                isSearchable
+                placeholder="Select Serial No."
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    minHeight: "31px",
+                    fontSize: "0.8rem"
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    fontSize: "0.8rem"
+                  })
+                }}
               />
             </Form.Group>
+            {!isEditing &&
+              <>
+                <Form.Group className="col-md-6">
+                  <Form.Label>From Serial Number</Form.Label>
+                  <Select
+                    options={pcbSerialOptions}
+                    value={pcbSerialOptions.find(opt => opt.value === productData.fromserial_no) || null}
+                    onChange={(selected) => {
+                      setProductData(prev => ({
+                        ...prev,
+                        fromserial_no: selected ? selected.value : ""
+                      }));
+                    }}
+                    isClearable
+                    isSearchable
+                    placeholder="Select From Serial"
+                    styles={{
+                      control: (base) => ({ ...base, minHeight: "31px", fontSize: "0.8rem" }),
+                      menu: (base) => ({ ...base, fontSize: "0.8rem" }),
+                    }}
+                  />
+                </Form.Group>
+                <Form.Group className="col-md-6">
+                  <Form.Label>To Serial Number</Form.Label>
+                  <Select
+                    options={pcbSerialOptions}
+                    value={pcbSerialOptions.find(opt => opt.value === productData.toserial_no) || null}
+                    onChange={(selected) => {
+                      setProductData(prev => ({
+                        ...prev,
+                        toserial_no: selected ? selected.value : ""
+                      }));
+                    }}
+                    isClearable
+                    isSearchable
+                    placeholder="Select To Serial"
+                    styles={{
+                      control: (base) => ({ ...base, minHeight: "31px", fontSize: "0.8rem" }),
+                      menu: (base) => ({ ...base, fontSize: "0.8rem" }),
+                    }}
+                  />
+                </Form.Group>
+              </>
+            }
             <Form.Group className="col-md-6">
               <Form.Label>Manufacture No.</Form.Label>
               <Form.Control
@@ -691,24 +857,12 @@ const handleDownloadSampleExcel = () => {
                 <option value="Issue">Issue</option>
               </Form.Select>
             </Form.Group>
-            <Form.Group className="col-md-6">
-              <Form.Label>Sale Status</Form.Label>
-              <Form.Select
-                name="sale_status"
-                value={productData.sale_status}
-                onChange={handleChange}
-                disabled={productData.test === "Issue"}
-                size="sm"
-              >
-                <option value="">Select Sale Status</option>
-                <option value="Available">Available</option>
-                <option value="Sold">Sold</option>
-                <option value="Reserved">Reserved</option>
-              </Form.Select>
-            </Form.Group>
           </Form>
-          <div className="d-flex justify-content-end mt-4">
-            <Button variant="success" onClick={handleSave} size="sm" style={{ minWidth: "120px" }}>
+          <div className="d-flex justify-content-end gap-2 mt-3">
+            <Button className="btn-common btn-cancel" variant="light" onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="success" className="btn-common btn-save" onClick={handleSave} size="sm">
               {isEditing ? "Update" : "Save"}
             </Button>
           </div>

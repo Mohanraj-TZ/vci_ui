@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Form, Button, Table, Row, Col, Alert } from "react-bootstrap";
+import { Form, Button, Table, Row, Col } from "react-bootstrap";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { API_BASE_URL } from "../api";
 
+// Assuming you have 'react-toastify/dist/ReactToastify.css' imported in your main App.js or index.js file.
+// import 'react-toastify/dist/ReactToastify.css';
 
 export default function AddService() {
   const navigate = useNavigate();
@@ -28,7 +31,7 @@ export default function AddService() {
     {
       category_id: "",
       vci_serial_no: "",
-    is_urgent: "No", // ✅ string
+      is_urgent: "No", // ✅ string
       hsn_code: "",
       tested_date: "",
       issue_found: "",
@@ -42,7 +45,6 @@ export default function AddService() {
   // State for dropdown options and form validation
   const [categories, setCategories] = useState([]);
   const [errors, setErrors] = useState({});
-  const [toast, setToast] = useState({ show: false, message: "", type: "" });
 
   // Pre-defined options for various form fields
   const statusOptions = [
@@ -62,31 +64,34 @@ export default function AddService() {
     { value: "completed", label: "Completed" },
   ];
 
-  /**
-   * Shows a toast notification with a given message and type.
-   * @param {string} message - The message to display.
-   * @param {string} type - The type of toast (e.g., 'success', 'danger').
-   */
-  const showToast = (message, type) => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: "", type: "" });
-    }, 3000);
-  };
-
   // Fetches categories for the dropdown from a mock API endpoint
   useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+
     axios
-      .get(`${API_BASE_URL}/form-dropdowns`)
+      .get(`${API_BASE_URL}/form-dropdowns`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       .then((res) => {
         const cats = res.data?.data?.categories || [];
         setCategories(cats.map((c) => ({ value: c.id, label: c.category })));
       })
       .catch((err) => {
-        showToast("Failed to load categories", "danger");
+        if (err.response?.status === 401) {
+          toast.error("Session expired. Please log in again.");
+          navigate('/login');
+        } else {
+          toast.error("Failed to load categories");
+        }
         console.error("Category load error:", err);
       });
-  }, []);
+  }, [navigate]);
 
   // Autofills "to_place" when "from_place" is "Mahle"
   useEffect(() => {
@@ -136,7 +141,7 @@ export default function AddService() {
     updatedItems[index][field] = value;
     setItems(updatedItems);
   };
-  
+
   /**
    * Handles changes for checkbox inputs within the service items table.
    * @param {number} index - The index of the item being changed.
@@ -156,7 +161,7 @@ export default function AddService() {
       {
         category_id: "",
         vci_serial_no: "",
-    is_urgent: "No", // ✅ string
+        is_urgent: "No", // ✅ string
         hsn_code: "",
         tested_date: "",
         issue_found: "",
@@ -181,20 +186,23 @@ export default function AddService() {
    */
   const validateForm = () => {
     let newErrors = {};
+    let hasError = false;
     const today = new Date().toISOString().split("T")[0];
 
     const requiredFields = [
-      "challan_no",
-      "challan_date",
-      "courier_name",
-      "sent_date",
-      "from_place",
-      "to_place",
+      { name: "challan_no", message: "Challan No. is required" },
+      { name: "challan_date", message: "Challan Date is required" },
+      { name: "courier_name", message: "Courier Name is required" },
+      { name: "sent_date", message: "Sent Date is required" },
+      { name: "from_place", message: "From Place is required" },
+      { name: "to_place", message: "To Place is required" },
     ];
 
-    requiredFields.forEach((field) => {
-      if (!formData[field]) {
-        newErrors[field] = "This field is required";
+    requiredFields.forEach(({ name, message }) => {
+      if (!formData[name]) {
+        newErrors[name] = message;
+        toast.error(message);
+        hasError = true;
       }
     });
 
@@ -202,54 +210,66 @@ export default function AddService() {
     ["challan_date", "sent_date", "received_date"].forEach((dateField) => {
       if (formData[dateField] && formData[dateField] > today) {
         newErrors[dateField] = "Future dates are not allowed";
+        toast.error("Future dates are not allowed");
+        hasError = true;
       }
     });
 
-    // Validation for date relationships
-    if (formData.challan_date && formData.sent_date && formData.challan_date !== formData.sent_date) {
-      newErrors.sent_date = "Sent Date must match Challan Date";
-    }
-    if (formData.sent_date && formData.received_date && formData.sent_date === formData.received_date) {
-      newErrors.received_date = "Sent Date and Received Date cannot be the same";
-    }
-    if (formData.from_place && formData.to_place && formData.from_place === formData.to_place) {
+    if (
+      formData.from_place &&
+      formData.to_place &&
+      formData.from_place === formData.to_place
+    ) {
       newErrors.to_place = "From Place and To Place cannot be the same";
+      toast.error("From Place and To Place cannot be the same");
+      hasError = true;
     }
 
-    // Validation for quantity
-    if (formData.quantity) {
-      const filledItems = items.filter(
-        (item) => item.category_id && item.vci_serial_no
-      );
-      if (filledItems.length !== parseInt(formData.quantity, 10)) {
-        newErrors.quantity = `You entered quantity ${formData.quantity}, but only ${filledItems.length} items are completely filled.`;
-      }
+    // New validation: Quantity must match the number of filled rows
+    if (formData.quantity && parseInt(formData.quantity) !== items.length) {
+      const message = `Quantity must match the number of item rows (${items.length})`;
+      newErrors.quantity = message;
+      toast.error(message);
+      hasError = true;
     }
 
     // Validation for service items
     items.forEach((item, index) => {
       if (!item.category_id || !item.vci_serial_no) {
         if (!newErrors.items) newErrors.items = {};
-        newErrors.items[index] = "Category and VCI Serial No are required";
+        const message = `Row ${index + 1}: Category and VCI Serial No are required`;
+        newErrors.items[index] = message;
+        toast.error(message);
+        hasError = true;
       }
     });
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return !hasError;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (validateForm()) {
-      // Exclude the 'status' field from the payload
       const { status, ...payload } = formData;
-      payload.items = items;
+
+      const itemsWithArrayIssueFound = items.map(item => {
+        if (item.issue_found && typeof item.issue_found === 'string') {
+          return {
+            ...item,
+            issue_found: [item.issue_found]
+          };
+        }
+        return item;
+      });
+
+      payload.items = itemsWithArrayIssueFound;
 
       axios
         .post(`${API_BASE_URL}/service-vci`, payload)
         .then(() => {
-          showToast("Service saved successfully", "success");
+          toast.success("Service saved successfully!");
           // Reset form on success
           setFormData({
             challan_no: "",
@@ -258,7 +278,7 @@ export default function AddService() {
             description: "",
             quantity: "",
             remarks: "",
-            status: "", // You can keep this for local state management
+            status: "",
             sent_date: "",
             received_date: "",
             from_place: "",
@@ -268,7 +288,7 @@ export default function AddService() {
             {
               category_id: "",
               vci_serial_no: "",
-              is_urgent: false, // 👈 ADDED NEW FIELD
+              is_urgent: "No",
               hsn_code: "",
               tested_date: "",
               issue_found: "",
@@ -281,35 +301,41 @@ export default function AddService() {
           setTimeout(() => navigate("/serviceProduct"), 1000);
         })
         .catch((error) => {
-          // ... (rest of the error handling code remains the same)
-          if (error.response && error.response.data && error.response.data.errors) {
-            setErrors(error.response.data.errors);
-            showToast("Please correct the errors", "danger");
-          } else if (error.response && error.response.data && error.response.data.message) {
-            showToast(error.response.data.message, "danger");
+          if (
+            error.response &&
+            error.response.data &&
+            error.response.data.errors
+          ) {
+            const errors = error.response.data.errors;
+
+            // Iterate over the errors object
+            for (const field in errors) {
+              const errorMessages = errors[field];
+              if (Array.isArray(errorMessages)) {
+                errorMessages.forEach(message => {
+                  toast.error(message);
+                });
+              } else {
+                toast.error(errorMessages);
+              }
+            }
+            setErrors(errors);
+          } else if (
+            error.response &&
+            error.response.data &&
+            error.response.data.message
+          ) {
+            toast.error(error.response.data.message);
           } else {
-            showToast("An unexpected error occurred", "danger");
+            toast.error("An unexpected error occurred!");
           }
         });
     } else {
-      showToast("Please correct the validation errors", "danger");
+      toast.warning("Please correct the validation errors!");
     }
   };
-
   return (
     <div className="container-fluid bg-white p-4">
-      {toast.show && (
-        <Alert
-          variant={toast.type}
-          onClose={() => setToast({ ...toast, show: false })}
-          dismissible
-          className="position-fixed top-0 end-0 m-3"
-          style={{ zIndex: 1050 }}
-        >
-          {toast.message}
-        </Alert>
-      )}
-
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0">Add New Service</h5>
         <Button variant="secondary" onClick={() => navigate(-1)}>
@@ -425,8 +451,12 @@ export default function AddService() {
               name="quantity"
               value={formData.quantity}
               onChange={handleChange}
+              isInvalid={!!errors.quantity}
               autoComplete="off"
             />
+            <Form.Control.Feedback type="invalid">
+              {errors.quantity}
+            </Form.Control.Feedback>
           </Col>
           <Col md={4}>
             <Form.Label>From Place*</Form.Label>
@@ -502,7 +532,7 @@ export default function AddService() {
               <tr>
                 <th>Category*</th>
                 <th>VCI Serial No*</th>
-                <th>Urgent</th> {/* 👈 ADDED NEW HEADER */}
+                <th>Urgent</th>
                 <th>HSN Code</th>
                 <th>Assigned To</th>
                 <th>Tested Date</th>
@@ -548,19 +578,18 @@ export default function AddService() {
                       autoComplete="off"
                     />
                   </td>
-                  <td className="text-center"> {/* 👈 ADDED NEW COLUMN */}
-<Form.Check
-  type="checkbox"
-  checked={item.is_urgent === "Yes"}
-  onChange={(e) =>
-    handleItemCheckboxChange(
-      idx,
-      "is_urgent",
-      e.target.checked ? "Yes" : "No"  // ✅ string, matches backend validation
-    )
-  }
-/>
-
+                  <td className="text-center">
+                    <Form.Check
+                      type="checkbox"
+                      checked={item.is_urgent === "Yes"}
+                      onChange={(e) =>
+                        handleItemCheckboxChange(
+                          idx,
+                          "is_urgent",
+                          e.target.checked ? "Yes" : "No"
+                        )
+                      }
+                    />
                   </td>
                   <td>
                     <Form.Control

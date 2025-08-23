@@ -110,7 +110,6 @@ if (Array.isArray(res.data.data)) {
     }
   };
 
-  // FIX: This function now accepts the entire grouped VCI object
 const handleDelete = async (vciToDelete) => {
   const result = await MySwal.fire({
     title: "Are you sure?",

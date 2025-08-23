@@ -81,7 +81,7 @@ if (authToken) {
 
             const vendorsRes = await axios.get(`${API_BASE_URL}/vendors`);
             setVendors(Array.isArray(vendorsRes.data.data) ? vendorsRes.data.data : vendorsRes.data);
-            toast.success("Vendors loaded successfully!", { toastId: 'vendors-loaded', autoClose: 1500 });
+            // toast.success("Vendors loaded successfully!", { toastId: 'vendors-loaded', autoClose: 1500 });
         } catch (err) {
             console.error("Failed to load initial data:", err);
             // toast.error("Failed to load data.", { autoClose: 1500 });
@@ -410,65 +410,72 @@ if (authToken) {
         return Object.keys(newErrors).length === 0;
     };
 
+const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validateForm()) {
+        return;
+    }
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!validateForm()) {
-            return;
-        }
-
-        const payload = {
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            gender: formData.gender,
-            mobile: formData.mobile,
-            alter_mobile: formData.altMobile,
-            email: formData.email,
-            company_name: formData.company_name,
-            address: formData.address,
-            city: formData.city,
-            state: formData.state || "",
-            district: formData.district || "",
-            pincode: formData.pincode,
-            gst_no: formData.gst,
-            date_of_birth: formData.dob,
-        };
-
-        const request = isEditing
-            ? axios.put(`${API_BASE_URL}/vendors/${formData.id}`, payload)
-            : axios.post(`${API_BASE_URL}/vendors`, payload);
-
-        request
-            .then(() => {
-                window.location.reload();
-            })
-            .catch((err) => {
-                if (err.response && err.response.data) {
-                    const { message, errors: backendErrors } = err.response.data;
-                    let newErrors = {};
-                    if (backendErrors) {
-                        Object.keys(backendErrors).forEach(field => {
-                            const fieldErrors = backendErrors[field];
-                            if (Array.isArray(fieldErrors)) {
-                                newErrors[field] = fieldErrors[0];
-                                toast.error(fieldErrors[0], { autoClose: 1000 });
-                            } else {
-                                newErrors[field] = fieldErrors;
-                                toast.error(fieldErrors, { autoClose: 1000 });
-                            }
-                        });
-                    } else if (message) {
-                        toast.error(`Failed to save vendor: ${message}`, { autoClose: 1000 });
-                    } else {
-                        toast.error("Failed to save vendor. Please try again.", { autoClose: 1000 });
-                    }
-                    setErrors(newErrors);
-                } else {
-                    toast.error("Failed to save vendor.", { autoClose: 1000 });
-                }
-            });
+    const payload = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        gender: formData.gender,
+        mobile: formData.mobile,
+        alter_mobile: formData.altMobile,
+        email: formData.email,
+        company_name: formData.company_name,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state || "",
+        district: formData.district || "",
+        pincode: formData.pincode,
+        gst_no: formData.gst,
+        date_of_birth: formData.dob,
     };
 
+    const request = isEditing
+        ? axios.put(`${API_BASE_URL}/vendors/${formData.id}`, payload)
+        : axios.post(`${API_BASE_URL}/vendors`, payload);
+
+    request
+        .then(() => {
+            const message = isEditing ? "Vendor updated successfully!" : "Vendor added successfully!";
+            toast.success(message, { autoClose: 1500 });
+
+            // Close the form
+            setShowForm(false);
+            
+            // Reload data after a short delay to allow the toast to show
+            setTimeout(() => {
+                loadInitialData();
+            }, 500);
+        })
+        .catch((err) => {
+            if (err.response && err.response.data) {
+                const { message, errors: backendErrors } = err.response.data;
+                let newErrors = {};
+                if (backendErrors) {
+                    Object.keys(backendErrors).forEach(field => {
+                        const fieldErrors = backendErrors[field];
+                        if (Array.isArray(fieldErrors)) {
+                            newErrors[field] = fieldErrors[0];
+                            toast.error(fieldErrors[0], { autoClose: 1000 });
+                        } else {
+                            newErrors[field] = fieldErrors;
+                            toast.error(fieldErrors, { autoClose: 1000 });
+                        }
+                    });
+                } else if (message) {
+                    toast.error(`Failed to save vendor: ${message}`, { autoClose: 1000 });
+                } else {
+                    toast.error("Failed to save vendor. Please try again.", { autoClose: 1000 });
+                }
+                setErrors(newErrors);
+            } else {
+                toast.error("Failed to save vendor.", { autoClose: 1000 });
+            }
+        });
+};
     const stateOptions = states.map(state => ({
         value: String(state.id),
         label: state.state,

@@ -82,7 +82,7 @@ if (authToken) {
 
             const customersRes = await axios.get(`${API_BASE_URL}/customers`);
             setCustomers(Array.isArray(customersRes.data.data) ? customersRes.data.data : customersRes.data);
-            toast.success("Customers loaded successfully!", { toastId: 'customers-loaded', autoClose: 1500 });
+            // toast.success("Customers loaded successfully!", { toastId: 'customers-loaded', autoClose: 1500 });
         } catch (err) {
             console.error("Failed to load initial data:", err);
             toast.error("Failed to load data.", { autoClose: 1500 });
@@ -397,7 +397,7 @@ if (authToken) {
     };
 
 
-    const handleSubmit = (e) => {
+const handleSubmit = (e) => {
         e.preventDefault();
         if (!validateForm()) {
             return;
@@ -426,7 +426,10 @@ if (authToken) {
 
         request
             .then(() => {
-                window.location.reload();
+                const message = isEditing ? "Customer updated successfully!" : "Customer added successfully!";
+                toast.success(message, { autoClose: 1500 });
+                closeForm();
+                loadInitialData(); // Re-fetch the data to update the table
             })
             .catch((err) => {
                 if (err.response && err.response.data) {
@@ -454,7 +457,6 @@ if (authToken) {
                 }
             });
     };
-
     const stateOptions = states.map(state => ({
         value: String(state.id),
         label: state.state,

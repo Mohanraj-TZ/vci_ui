@@ -23,7 +23,10 @@ export default function DamagedItemsListPage() {
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
   const { id } = useParams();
-
+const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [sparepartName, setSparepartName] = useState("");
   useEffect(() => {
     fetchData();
   }, []);
@@ -39,6 +42,96 @@ export default function DamagedItemsListPage() {
       setLoading(false);
     }
   };
+const handleDownloadPdf = async () => {
+    try {
+      toast.info("Preparing PDF for download...");
+
+      const url = `${API_BASE_URL}/sparepartdamage/pdf`;
+
+      const response = await axios.get(url, {
+        responseType: 'blob',
+        timeout: 30000,
+      });
+
+      const contentType = response.headers['content-type'];
+      if (!contentType || !contentType.toLowerCase().includes('pdf')) {
+        const errorText = await new Response(response.data).text();b
+        if (errorText.includes("No purchases found")) {
+          toast.error("No purchases found for the selected filters.");
+        } else {
+          console.error("Server response is not a PDF:", errorText);
+          toast.error("Failed to download PDF report. Server returned an error.");
+        }
+        return;
+      }
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', 'purchase_report.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success("PDF report downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      if (axios.isCancel(error)) {
+        toast.warn("PDF download request was canceled.");
+      } else if (error.response) {
+        if (error.response.data && error.response.data.error) {
+          toast.error(error.response.data.error);
+        } else {
+          toast.error(`Server error: ${error.response.status}. Failed to download PDF.`);
+        }
+      } else if (error.request) {
+        toast.error("Network error: Failed to connect to the server.");
+      } else {
+        toast.error("An unexpected error occurred.");
+      }
+    }
+  };
+
+  const handleDownloadExcel = async () => {
+    try {
+      const params = new URLSearchParams({
+        search: search,
+        page: page,
+        perPage: perPage,
+        sortField: sortField,
+        sortDirection: sortDirection,
+        from_date: fromDate,
+        to_date: toDate,
+        invoice_number: invoiceNumber,
+        sparepart_name: sparepartName,
+      });
+
+      const response = await axios.get(
+        `${API_BASE_URL}/damageditems/excel?${params.toString()}`,
+        {
+          responseType: "blob",
+        }
+      );
+
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = "damaged_items.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Excel report downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading Excel:", error);
+      toast.error("Failed to download Excel report.");
+    }
+  };
+
 
   const handleDelete = async (id) => {
   const result = await MySwal.fire({
@@ -77,7 +170,16 @@ export default function DamagedItemsListPage() {
   const filteredData = data.filter((item) =>
     Object.values(item).join(" ").toLowerCase().includes(search.toLowerCase())
   );
-
+const getFilterParams = () => {
+    const params = new URLSearchParams({
+      search: search,
+      page: page,
+      perPage: perPage,
+      sortField: sortField,
+      sortDirection: sortDirection,
+    });
+    return params;
+  };
   const sortedData = [...filteredData].sort((a, b) => {
     if (!sortField) return 0;
     const valA = a[sortField]?.toString().toLowerCase() || "";
@@ -106,34 +208,61 @@ export default function DamagedItemsListPage() {
               {[5, 10, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
             </Form.Select>
           </div>
-          <div className="col-md-6 text-md-end" style={{ fontSize: '0.8rem' }}>
-            <div className="mt-2 d-inline-block mb-2">
-              <Button
+<div className="col-md-6 text-md-end" style={{ fontSize: '0.8rem' }}>
+    <div className="d-flex align-items-center justify-content-end mb-2">
+        <div className="me-2">
+            <Button
                 variant="outline-secondary"
                 size="sm"
-                className="me-2"
                 onClick={fetchData}
-              >
+            >
                 <i className="bi bi-arrow-clockwise"></i>
-              </Button>
-              <Button
+            </Button>
+            <Button
                 size="sm"
                 onClick={() => navigate("/damaged/add")}
+                className="ms-2"
                 style={{
-                  backgroundColor: '#2FA64F',
-                  borderColor: '#2FA64F',
-                  color: '#fff',
-                  padding: '0.25rem 0.5rem',
-                  fontSize: '0.8rem',
-                  minWidth: '90px',
-                  height: '28px',
+                    backgroundColor: '#2FA64F',
+                    borderColor: '#2FA64F',
+                    color: '#fff',
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.8rem',
+                    minWidth: '90px',
+                    height: '28px',
                 }}
-              >
+            >
                 + Add New
-              </Button>
-            </div>
-            <Search search={search} setSearch={setSearch} perPage={perPage} setPerPage={setPerPage} setPage={setPage} />
-          </div>
+            </Button>
+            <Button
+                size="sm"
+                onClick={handleDownloadPdf}
+                className="ms-2"
+                style={{
+                    backgroundColor: '#dc3545',
+                    borderColor: '#dc3545',
+                    color: '#fff',
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.8rem',
+                    minWidth: '90px',
+                    height: '28px',
+                }}
+            >
+                <i className="bi bi-file-earmark-pdf"></i> Download PDF
+            </Button>
+            <Button
+                variant="success"
+                size="sm"
+                onClick={handleDownloadExcel}
+                style={{ color: "white" }}
+                className="ms-2"
+            >
+                <i className="bi bi-file-earmark-excel"></i> Excel
+            </Button>
+        </div>
+        <Search search={search} setSearch={setSearch} perPage={perPage} setPerPage={setPerPage} setPage={setPage} />
+    </div>
+</div>
         </div>
 
         <div className="table-responsive">

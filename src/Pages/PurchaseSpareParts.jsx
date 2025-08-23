@@ -13,7 +13,6 @@ import { API_BASE_URL } from "../api";
 import Breadcrumb from "./Components/Breadcrumb";
 import Pagination from "./Components/Pagination";
 import Search from "./Components/Search";
-// Import useNavigate hook from react-router-dom for redirection
 import { useNavigate } from "react-router-dom";
 
 export default function PurchaseSparepartsPage() {
@@ -32,10 +31,6 @@ export default function PurchaseSparepartsPage() {
         const today = new Date();
         return today.toISOString().split("T")[0];
     });
-    const [warrantyStartDate, setWarrantyStartDate] = useState("");
-    const [warrantyEndDate, setWarrantyEndDate] = useState("");
-    const [showWarrantyStartCalendar, setShowWarrantyStartCalendar] = useState(false);
-    const [showWarrantyEndCalendar, setShowWarrantyEndCalendar] = useState(false);
     const [returnDate, setReturnDate] = useState(() => {
         const today = new Date();
         return today.toISOString().split("T")[0];
@@ -58,7 +53,6 @@ export default function PurchaseSparepartsPage() {
     const dataTableInstance = useRef(null);
     const navigate = useNavigate(); // Initialize the useNavigate hook
 
-    // Add this useEffect to handle the authentication token
     useEffect(() => {
         const authToken = localStorage.getItem('authToken');
         if (authToken) {
@@ -71,6 +65,64 @@ export default function PurchaseSparepartsPage() {
         }
     }, [navigate]);
 
+
+const handleDownloadExcel = async () => {
+  try {
+    const response = await axios.get(
+      `${API_BASE_URL}/excelreportpurchase`,
+      {
+        responseType: "blob", // Important: tells axios to handle the response as binary data
+      }
+    );
+
+    // Create a blob from the response data
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    // Create a temporary URL for the blob
+    const url = window.URL.createObjectURL(blob);
+    // Create a link element
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+    a.download = "damaged_items.xlsx"; // Suggested filename
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success("Excel report downloaded successfully!");
+  } catch (error) {
+    console.error("Error downloading Excel:", error);
+    toast.error("Failed to download Excel report.");
+  }
+};
+
+const handleDownloadPdf = async () => {
+    try {
+        const response = await axios.get(
+            `${API_BASE_URL}/purchsepdf`,
+            {
+                responseType: 'blob', // Important: tells axios to handle the response as binary data
+            }
+        );
+
+        // Create a blob from the response data
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(blob);
+        // Create a link element
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'sparepart_purchases.pdf'; // Suggested filename
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        toast.success("PDF report downloaded successfully!");
+    } catch (error) {
+        console.error("Error downloading PDF:", error);
+        toast.error("Failed to download PDF report.");
+    }
+}
 
     const getBlueBorderStyles = (value, isInvalid) => {
         const baseStyle = {
@@ -90,31 +142,31 @@ export default function PurchaseSparepartsPage() {
         return baseStyle;
     };
 
-    const getTableInputStyles = (value, isInvalid) => {
-        const baseTableInputStyle = {
-            height: "40px",
-            backgroundColor: "transparent",
-            padding: "0.375rem 0.75rem",
-            border: "1px solid #ced4da",
-            fontFamily: "Product Sans, sans-serif",
-            fontSize: "14px",
-            borderRadius: "0.25rem",
-            width: "100%",
-        };
-        if (isInvalid) {
-            return {
-                ...baseTableInputStyle,
-                borderColor: "#dc3545",
-                boxShadow: "0 0 0 0.25rem rgba(220, 53, 69, 0.25)",
-            };
-        } else if (value) {
-            return {
-                ...baseTableInputStyle,
-                boxShadow: "0 0 0 0.25rem rgba(39, 140, 88, 0.25)",
-            };
-        }
-        return baseTableInputStyle;
-    };
+    // const getTableInputStyles = (value, isInvalid) => {
+    //     const baseTableInputStyle = {
+    //         height: "40px",
+    //         backgroundColor: "transparent",
+    //         padding: "0.375rem 0.75rem",
+    //         border: "1px solid #ced4da",
+    //         fontFamily: "Product Sans, sans-serif",
+    //         fontSize: "14px",
+    //         borderRadius: "0.25rem",
+    //         width: "100%",
+    //     };
+    //     if (isInvalid) {
+    //         return {
+    //             ...baseTableInputStyle,
+    //             borderColor: "#dc3545",
+    //             boxShadow: "0 0 0 0.25rem rgba(220, 53, 69, 0.25)",
+    //         };
+    //     } else if (value) {
+    //         return {
+    //             ...baseTableInputStyle,
+    //             boxShadow: "0 0 0 0.25rem rgba(39, 140, 88, 0.25)",
+    //         };
+    //     }
+    //     return baseTableInputStyle;
+    // };
 
     const customSelectStyle = {
         backgroundRepeat: "no-repeat",
@@ -284,183 +336,135 @@ export default function PurchaseSparepartsPage() {
         });
     };
 
-    const handleDateChange = e => {
-        const { value } = e.target;
-        setInvoiceDate(value);
-        setFormErrors(prev => ({ ...prev, invoice_date: "" }));
+    // const handleDateChange = e => {
+    //     const { value } = e.target;
+    //     setInvoiceDate(value);
+    //     setFormErrors(prev => ({ ...prev, invoice_date: "" }));
+    // };
+
+    // const handleReturnDateChange = e => {
+    //     const { value } = e.target;
+    //     setReturnDate(value);
+    //     setFormErrors(prev => ({ ...prev, return_date: "" }));
+    // };
+
+const validateForm = (payload, items, isReturnForm = false) => {
+    let errors = {};
+    console.log("Validating payload:", payload);
+    console.log("Validating items:", items);
+
+    // Validate Vendor
+    if (!payload.vendor_id) {
+        errors.vendor_id = "Vendor is required.";
+    }
+
+    // Validate Invoice No
+    if (!payload.invoice_no) {
+        errors.invoice_no = "Invoice No. is required.";
+    }
+
+    // Validate Invoice Date
+    // if (!payload.invoice_date) {
+    //     errors.invoice_date = "Invoice Date is required.";
+    // }
+
+    // Validate at least one item
+    if (!items || items.length === 0) {
+        errors.items = "At least one spare part is required.";
+    } else {
+        // Validate each item for spare part ID and quantity
+        items.forEach((item, index) => {
+            if (!item.sparepart_id || item.quantity <= 0) {
+                // A single toast message for all item-related errors is cleaner
+                if (!errors.items_details) {
+                    errors.items_details = "All spare parts must have a valid part selected and a quantity greater than 0.";
+                }
+            }
+        });
+    }
+
+    console.log("Validation errors:", errors);
+    setFormErrors(errors);
+
+    // Display a toast message for each validation error
+    if (Object.keys(errors).length > 0) {
+        Object.keys(errors).forEach(key => {
+            toast.error(errors[key]);
+        });
+    }
+
+    return Object.keys(errors).length === 0;
+};
+const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    const vendor_id = formData.vendor_id;
+    const invoice_no = formData.invoiceNo;
+    const notes = formData.notes || null;
+    const invoice_date = invoiceDate;
+
+    const items = sparePartsRows
+        .map(row => {
+            const quantity = parseInt(row.quantity, 10);
+            return {
+                sparepart_id: row.sparepart_id,
+                quantity: isNaN(quantity) ? 0 : quantity,
+            };
+        })
+        .filter(i => i.sparepart_id && i.quantity > 0);
+
+    const payload = {
+        vendor_id,
+        invoice_no,
+        invoice_date,
+        notes,
+        items,
     };
 
-    const handleReturnDateChange = e => {
-        const { value } = e.target;
-        setReturnDate(value);
-        setFormErrors(prev => ({ ...prev, return_date: "" }));
-    };
+    if (!validateForm(payload, sparePartsRows)) {
+        return;
+    }
 
-    const validateForm = (payload, items, isReturnForm = false) => {
-        let errors = {};
-        console.log("Validating payload:", payload);
-        console.log("Validating items:", items);
-
-        if (!payload.vendor_id) {
-            errors.vendor_id = "Vendor is required.";
-        }
-        if (isReturnForm) {
-            if (!payload.invoice_no) {
-                errors.invoiceNo = "Invoice No. is required.";
-            }
-            if (!payload.return_date) {
-                errors.return_date = "Return Date is required.";
-            }
-            if (items.length === 0 || items.every(item => !item.sparepart_id || !parseInt(item.quantity))) {
-                errors.items = "Please add at least one spare part with a valid quantity.";
-            } else {
-                items.forEach((item, index) => {
-                    const returnedQuantity = parseInt(item.quantity, 10);
-                    const selectedPurchase = spareparts.find(p => String(p.invoice_no) === String(payload.invoice_no));
-                    let purchasedQty = 0;
-                    if (selectedPurchase) {
-                        const purchasedItem = selectedPurchase.items.find(pi => String(pi.sparepart_id) === String(item.sparepart_id));
-                        if (purchasedItem) {
-                            purchasedQty = parseInt(purchasedItem.quantity, 10);
-                        }
-                    }
-                    const sparepart = availableSpareparts.find(sp => String(sp.id) === String(item.sparepart_id));
-                    const availableQty = sparepart ? parseInt(sparepart.quantity, 10) : 0;
-
-                    if (!item.sparepart_id) {
-                        errors[`sparepart-${index}`] = "Spare part is required.";
-                    }
-                    if (!item.quantity || isNaN(returnedQuantity) || returnedQuantity < 1) {
-                        errors[`quantity-${index}`] = "Quantity must be a positive number.";
-                    } else {
-                        if (returnedQuantity > purchasedQty) {
-                            errors[`quantity-${index}`] = `Return quantity (${returnedQuantity}) cannot exceed purchased quantity (${purchasedQty}).`;
-                        } else if (returnedQuantity > availableQty) {
-                            errors[`quantity-${index}`] = `Return quantity (${returnedQuantity}) cannot exceed current available quantity (${availableQty}).`;
-                        }
-                    }
-                });
-            }
+    try {
+        setLoading(true);
+        let response;
+        if (editingPurchase) {
+            response = await axios.put(
+                `${API_BASE_URL}/sparepart-purchases/${editingPurchase.id}`,
+                payload,
+                { headers: { "Content-Type": "application/json", Accept: "application/json" } }
+            );
         } else {
-            // ... (rest of the validateForm function remains unchanged)
+            response = await axios.post(
+                `${API_BASE_URL}/spareparts/purchase`,
+                payload,
+                { headers: { "Content-Type": "application/json", Accept: "application/json" } }
+            );
         }
 
-        console.log("Validation errors:", errors);
-        setFormErrors(errors);
-        if (Object.keys(errors).length > 0) {
-            const firstErrorMsg = errors[Object.keys(errors)[0]];
-            toast.error(firstErrorMsg || "Please correct the errors in the form.");
-        }
-        return Object.keys(errors).length === 0;
-    };
-    const handleFormSubmit = async e => {
-        e.preventDefault();
-        const vendor_id = formData.vendor_id;
-        const invoice_no = formData.invoiceNo;
-        const notes = formData.notes || null;
-        const invoice_date = invoiceDate;
-
-        const items = sparePartsRows
-            .map(row => {
-                const quantity = parseInt(row.quantity, 10);
-                return {
-                    sparepart_id: row.sparepart_id,
-                    quantity: isNaN(quantity) ? 0 : quantity,
-                };
-            })
-            .filter(i => i.sparepart_id && i.quantity > 0);
-
-        const payload = {
-            vendor_id,
-            invoice_no,
-            invoice_date,
-            notes,
-            items,
-        };
-
-        if (!validateForm(payload, sparePartsRows)) {
-            return;
+        if (response.data?.success) {
+            toast.success(editingPurchase ? "Purchase updated successfully!" : "Purchase added successfully!");
+            await fetchPurchases(); 
+        } else {
+            // Handle API errors gracefully
+            toast.error(response.data?.message || `Failed to ${editingPurchase ? 'update' : 'add'} purchase.`);
         }
 
-        try {
-            setLoading(true);
-            let data;
-            if (editingPurchase) {
-                const resp = await axios.put(
-                    `${API_BASE_URL}/sparepart-purchases/${editingPurchase.id}`,
-                    payload,
-                    { headers: { "Content-Type": "application/json", Accept: "application/json" } }
-                );
-                data = resp.data;
-                if (data?.success) {
-                    toast.success("Purchase updated successfully!");
-                    setSpareparts(prev =>
-                        prev.map(p =>
-                            p.id === editingPurchase.id ? { ...p, ...payload, items } : p
-                        )
-                    );
-                } else {
-                    toast.error(data?.message || "Failed to update purchase.");
-                }
-            } else {
-                const resp = await axios.post(
-                    `${API_BASE_URL}/spareparts/purchase`,
-                    payload,
-                    { headers: { "Content-Type": "application/json", Accept: "application/json" } }
-                );
-                data = resp.data;
-                if (data?.success && data.data?.id) {
-                    const newEntry = {
-                        ...payload,
-                        id: data.data.id,
-                        items,
-                        created_at: data.data.created_at,
-                        updated_at: data.data.updated_at,
-                    };
-                    if (dataTableInstance.current) {
-                        dataTableInstance.current.destroy();
-                        dataTableInstance.current = null;
-                    }
-                    const updatedSpareparts = [...spareparts, newEntry];
-                    setSpareparts(updatedSpareparts);
-                    setTimeout(() => {
-                        if (updatedSpareparts.length && tableRef.current) {
-                            dataTableInstance.current = $(tableRef.current).DataTable({
-                                ordering: true,
-                                paging: true,
-                                searching: true,
-                                lengthChange: true,
-                                columnDefs: [{ targets: 0, className: "text-center" }],
-                            });
-                        }
-                    }, 0);
-                    toast.success("Purchase added successfully!");
-                } else {
-                    toast.error(data?.message || "Failed to add purchase.");
-                }
-            }
-            setShowForm(false);
-            setEditingPurchase(null);
-            setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
-            setInvoiceDate(new Date().toISOString().split("T")[0]);
-            setFormErrors({});
-            setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
-        } catch (error) {
-            if (error.response) {
-                console.error("Server responded with error:", error.response.status, error.response.data);
-                toast.error(`Server error (${error.response.status}): ${error.response.data?.message ?? "Please check form data"}`);
-            } else if (error.request) {
-                console.error("No response received:", error.request);
-                toast.error("No response received from server.");
-            } else {
-                console.error("Request setup error:", error.message);
-                toast.error("An error occurred before sending the request.");
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
+        // Reset the form and close the offcanvas
+        setShowForm(false);
+        setEditingPurchase(null);
+        setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
+        setInvoiceDate(new Date().toISOString().split("T")[0]);
+        setFormErrors({});
+        setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
 
+    } catch (error) {
+        console.error("API error:", error.response || error.request || error.message);
+        const errorMessage = error.response?.data?.message || "An unexpected error occurred.";
+        toast.error(errorMessage);
+    } finally {
+        setLoading(false);
+    }
+};
     const handleReturnFormSubmit = async e => {
         e.preventDefault();
         setLoading(true);
@@ -481,10 +485,7 @@ export default function PurchaseSparepartsPage() {
         };
 
         console.log("Submitting return payload:", JSON.stringify(payload, null, 2));
-        // Add warranty dates if OBD board is selected
-        if (hasObdBoard()) {
-            payload.warranty_start_date = calculateWarrantyDetails().startDate;
-        }
+
         if (!validateForm(payload, items, true)) {
             setLoading(false);
             toast.error("Form validation failed. Please check the errors.");
@@ -597,25 +598,10 @@ export default function PurchaseSparepartsPage() {
                 invoiceNo: purchase.invoice_no,
                 notes: purchase.notes || "",
             });
-            // Set warranty dates if editing and has OBD board
-            if (purchase.warranty_start_date && purchase.warranty_end_date) {
-                setWarrantyStartDate(purchase.warranty_start_date);
-                setWarrantyEndDate(purchase.warranty_end_date);
-            } else if (purchase.invoice_date) {
-                // Auto-calculate warranty dates
-                const startDate = new Date(purchase.invoice_date + "T00:00:00");
-                const endDate = new Date(startDate);
-                endDate.setFullYear(endDate.getFullYear() + 1);
-                
-                setWarrantyStartDate(purchase.invoice_date);
-                setWarrantyEndDate(`${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`);
-            }
         } else {
             setSparePartsRows([{ sparepart_id: "", quantity: "" }]);
             setInvoiceDate(new Date().toISOString().split("T")[0]);
             setFormData({ vendor_id: "", invoiceNo: "", notes: "" });
-            setWarrantyStartDate("");
-            setWarrantyEndDate("");
         }
         setShowForm(true);
         setShowReturnForm(false);
@@ -683,43 +669,7 @@ export default function PurchaseSparepartsPage() {
     });
 
     const paginatedSpareparts = sortedSpareparts.slice((page - 1) * perPage, page * perPage);
-    // Add these helper functions after your existing functions
-    const isObdBoard = (sparepartId) => {
-        const sparepart = availableSpareparts.find(sp => String(sp.id) === String(sparepartId));
-        return sparepart && sparepart.name.toLowerCase().includes("obd board");
-    };
 
-    const hasObdBoard = () => {
-        return sparePartsRows.some(row => 
-            row.sparepart_id && isObdBoard(row.sparepart_id)
-        );
-    };
-
-    const calculateWarrantyDetails = () => {
-        if (!invoiceDate) return { startDate: '', status: '', duration: '' };
-        
-        const startDate = new Date(invoiceDate + "T00:00:00");
-        const endDate = new Date(startDate);
-        endDate.setFullYear(endDate.getFullYear() + 1);
-        
-        const today = new Date();
-        const isActive = today <= endDate;
-        
-        let duration = '';
-        if (isActive) {
-            const diffTime = endDate.getTime() - today.getTime();
-            const diffMonths = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30.44)); 
-            duration = `${diffMonths} month${diffMonths !== 1 ? 's' : ''}`;
-        } else {
-            duration = 'Warranty has expired';
-        }
-        
-        return {
-            startDate: invoiceDate,
-            status: isActive ? 'Active' : 'Inactive',
-            duration: duration
-        };
-    };
     return (
         <div className="px-4 " style={{ fontSize: "0.75rem" }}>
             <Breadcrumb title="Purchase Spare Parts" />
@@ -768,6 +718,31 @@ export default function PurchaseSparepartsPage() {
                             >
                                 + Add New
                             </Button>
+                              <Button
+                                            size="sm"
+                                            onClick={handleDownloadPdf}
+                                            className="ms-2"
+                                            style={{
+                                                backgroundColor: '#dc3545',
+                                                borderColor: '#dc3545',
+                                                color: '#fff',
+                                                padding: '0.25rem 0.5rem',
+                                                fontSize: '0.8rem',
+                                                minWidth: '90px',
+                                                height: '28px',
+                                            }}
+                                        >
+                                            <i className="bi bi-file-earmark-pdf"></i> Download PDF
+                                        </Button>
+                                        <Button
+                                            variant="success"
+                                            size="sm"
+                                            onClick={handleDownloadExcel}
+                                            style={{ color: "white" }}
+                                            className="ms-2"
+                                        >
+                                            <i className="bi bi-file-earmark-excel"></i> Excel
+                                        </Button>
                         </div>
                         <Search
                             search={search}
@@ -876,19 +851,6 @@ export default function PurchaseSparepartsPage() {
                                                 >
                                                     <i className="bi bi-arrow-return-left"></i>
                                                 </Button>
-                                                {/* <Button
-                                                    variant="outline-info"
-                                                    size="sm"
-                                                    className="p-1"
-                                                    onClick={() => handleShowWarranty(purchase)}
-                                                    style={{
-                                                        borderColor: "#2E3A59",
-                                                        color: "#2E3A59",
-                                                        backgroundColor: "transparent",
-                                                    }}
-                                                    >
-                                                    <i className="bi bi-shield-check"></i>
-                                                </Button> */}
                                             </div>
 
                                         </td>
@@ -1054,21 +1016,6 @@ export default function PurchaseSparepartsPage() {
                                                 )}`;
                                                 setInvoiceDate(formatted);
                                                 setShowCalendar(false);
-                                                // Auto-calculate warranty dates when invoice date changes
-                                                if (hasObdBoard()) {
-                                                const warrantyEndDate = new Date(safeDate);
-                                                warrantyEndDate.setFullYear(
-                                                    warrantyEndDate.getFullYear() + 1
-                                                );
-                                                const formattedEndDate = `${warrantyEndDate.getFullYear()}-${String(
-                                                    warrantyEndDate.getMonth() + 1
-                                                ).padStart(2, "0")}-${String(
-                                                    warrantyEndDate.getDate()
-                                                ).padStart(2, "0")}`;
-
-                                                setWarrantyStartDate(formatted);
-                                                setWarrantyEndDate(formattedEndDate);
-                                                }
                                             }}
                                             onCancel={() => setShowCalendar(false)}
                                             allowFuture={false}
@@ -1136,15 +1083,14 @@ export default function PurchaseSparepartsPage() {
                                 </h6>
                                 <button
                                     type="button"
-                                    className="add-row-btn"
                                     onClick={handleAddRow}
                                     disabled={
                                         sparePartsRows.length >= availableSpareparts.length
                                     }
                                     style={{
-                                        backgroundColor: "#2FA64F",
-                                        borderColor: "#2FA64F",
-                                        color: "#fff",
+                                        border: "1px solid #C7E6D1",
+                                        backgroundColor: "#F1FCF6",
+                                        color: "#1F9254",
                                         padding: "6px 12px",
                                         fontSize: "14px",
                                         borderRadius: "6px",
@@ -1155,177 +1101,201 @@ export default function PurchaseSparepartsPage() {
                                         cursor:
                                             sparePartsRows.length >= availableSpareparts.length
                                                 ? "not-allowed"
-                                                : "pointer",
-                                            minWidth: "90px",
-                                            height: "28px",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                        }}
+                                                : "pointer"
+                                    }}
                                 >
                                     + Add Row
                                 </button>
                             </div>
-                            <div style={{ border: "1px solid #D3DBD5", borderRadius: "6px", overflow: "hidden" }}>
-                                <div style={{ maxHeight: "200px", overflowY: "auto" }}>
-                                <table className="custom-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}>
-                                    <thead>
-                                    <tr>
-                                        <th style={{ textAlign: "left", padding: "12px", backgroundColor: "#2E3A59", borderBottom: "1px solid #D3DBD5", fontWeight: 600, fontSize: "14px" }}>Sparepart Name</th>
-                                        <th style={{ textAlign: "left", padding: "12px", backgroundColor: "#2E3A59", borderBottom: "1px solid #D3DBD5", fontWeight: 600, fontSize: "14px" }}>Quantity</th>
-                                        <th style={{ width: "40px", padding: "12px", backgroundColor: "#2E3A59", borderBottom: "1px solid #D3DBD5" }}></th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {sparePartsRows.length > 0 ? sparePartsRows.map((row, index) => {
-                                        const selectedIds = sparePartsRows.filter((_, i) => i !== index).map(r => String(r.sparepart_id));
-                                        const availableOptions = availableSpareparts.filter(sp => String(row.sparepart_id) === String(sp.id) || !selectedIds.includes(String(sp.id)));
-                                        return (
-                                        <tr key={index}>
-                                            <td style={{ padding: "12px" }}>
-                                            <Form.Select
-                                                name={`sparepart-${index}`}
-                                                value={row.sparepart_id}
-                                                onChange={(e) => handleRowChange(index, "sparepart_id", e.target.value)}
-                                                isInvalid={!!formErrors[`sparepart-${index}`]}
-                                                style={{ border: "none", backgroundColor: "#fff", padding: "5px", fontSize: "14px", borderRadius: "6px" }}
-                                            >
-                                                <option value="" disabled>Select Spare Part</option>
-                                                {availableOptions.map(sparepart => (
-                                                <option key={sparepart.id} value={sparepart.id}>{sparepart.name}</option>
-                                                ))}
-                                            </Form.Select>
-                                            <Form.Control.Feedback type="invalid" className="d-block mt-0">
-                                                {formErrors[`sparepart-${index}`]}
-                                            </Form.Control.Feedback>
-                                            </td>
-                                            <td style={{ padding: "12px" }}>
-                                            <Form.Control
-                                                type="number"
-                                                name={`quantity-${index}`}
-                                                placeholder="Enter Quantity"
-                                                min="1"
-                                                value={row.quantity}
-                                                onChange={(e) => handleRowChange(index, "quantity", e.target.value)}
-                                                isInvalid={!!formErrors[`quantity-${index}`]}
-                                                style={{ border: "none", backgroundColor: "#fff", borderRadius: "6px" }}
-                                            />
-                                            <Form.Control.Feedback type="invalid" className="d-block mt-0">
-                                                {formErrors[`quantity-${index}`]}
-                                            </Form.Control.Feedback>
-                                            </td>
-                                            <td className="text-center align-middle" style={{ padding: "5px" }}>
-                                            <Button variant="link" size="sm" onClick={() => handleRemoveRow(index)} className="p-0"
-                                                style={{ backgroundColor: "#FFEBEBC9", borderRadius: "50%", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                                <BsDashLg style={{ color: "red", fontSize: "1rem" }} />
-                                            </Button>
-                                            </td>
-                                        </tr>
-                                        )
-                                    }) : (
-                                        <tr>
-                                        <td colSpan="3" className="text-center text-muted py-3">No spare parts added yet.</td>
-                                        </tr>
-                                    )}
-                                    </tbody>
-                                </table>
-                                </div>
-                            </div>
-                            {!!formErrors.items && <div className="invalid-feedback d-block mt-1">{formErrors.items}</div>}
-                            </div>
-                            {hasObdBoard() && (
-                            <div className="mb-3">
-                                <h6 className="fw-semibold mb-2" style={{ color: "#393C3AE5" }}>
-                                Warranty Details(OBD Board)
-                                </h6>
-                                <div style={{ border: "1px solid #D3DBD5", borderRadius: "6px", overflow: "hidden" }}>
-                                <table
-                                    className="custom-table"
-                                    style={{
-                                    width: "100%",
-                                    tableLayout: "fixed",
-                                    borderCollapse: "collapse",
-                                    }}
-                                >
-                                    <thead>
-                                    <tr>
-                                        <th
-                                        style={{
-                                            textAlign: "left",
-                                            padding: "12px",
-                                            backgroundColor: "#2E3A59",
-                                            color: "white",
-                                            borderBottom: "1px solid #D3DBD5",
-                                            fontWeight: 600,
-                                            fontSize: "14px",
-                                        }}
-                                        >
-                                        Warranty Start Date
-                                        </th>
-                                        <th
-                                        style={{
-                                            textAlign: "left",
-                                            padding: "12px",
-                                            backgroundColor: "#2E3A59",
-                                            color: "white",
-                                            borderBottom: "1px solid #D3DBD5",
-                                            fontWeight: 600,
-                                            fontSize: "14px",
-                                        }}
-                                        >
-                                        Status
-                                        </th>
-                                        <th
-                                        style={{
-                                            textAlign: "left",
-                                            padding: "12px",
-                                            backgroundColor: "#2E3A59",
-                                            color: "white",
-                                            borderBottom: "1px solid #D3DBD5",
-                                            fontWeight: 600,
-                                            fontSize: "14px",
-                                        }}
-                                        >
-                                        Warranty Time
-                                        </th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <tr>
-                                        <td style={{ padding: "12px" }}>
-                                        {calculateWarrantyDetails().startDate
-                                            ? new Date(
-                                                calculateWarrantyDetails().startDate + "T00:00:00"
-                                            ).toLocaleDateString("en-GB")
-                                            : "Select invoice date first"}
-                                        </td>
-                                        <td style={{ padding: "12px" }}>
-                                        <span
-                                            className={`badge ${
-                                            calculateWarrantyDetails().status === "Active"
-                                                ? "bg-success"
-                                                : "bg-danger"
-                                            }`}
-                                            style={{ fontSize: "12px", padding: "6px 12px" }}
-                                        >
-                                            {calculateWarrantyDetails().status}
-                                        </span>
-                                        </td>
-                                        <td style={{ padding: "12px" }}>
-                                        {calculateWarrantyDetails().duration}
-                                        </td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                                </div>
-                            </div>
-                            )}
-                            <div className="d-flex justify-content-end gap-2 mt-3">
-                            <Button
-                                className="btn-common btn-cancel"
-                                variant="light"
-                                onClick={() => setShowForm(false)}
+
+                            <div
+                                style={{
+                                    border: "1px solid #D3DBD5",
+                                    borderRadius: "6px",
+                                    overflow: "hidden",
+                                    backgroundColor: "#fff"
+                                }}
                             >
+                                <table
+                                    className="table mb-0"
+                                    style={{ tableLayout: "fixed", marginBottom: 0 }}
+                                >
+                                    <thead style={{ backgroundColor: "#F8F9FA" }}>
+                                        <tr>
+                                            <th
+                                                style={{
+                                                    textAlign: "left",
+                                                    padding: "12px",
+                                                    backgroundColor: "#F3F4F6",
+                                                    borderBottom: "1px solid #D3DBD5",
+                                                    fontWeight: 600,
+                                                    fontSize: "15px"
+                                                }}
+                                            >
+                                                Sparepart Name
+                                            </th>
+                                            <th
+                                                style={{
+                                                    textAlign: "left",
+                                                    padding: "12px",
+                                                    backgroundColor: "#F3F4F6",
+                                                    borderBottom: "1px solid #D3DBD5",
+                                                    fontWeight: 600,
+                                                    fontSize: "15px"
+                                                }}
+                                            >
+                                                Quantity
+                                            </th>
+                                            <th
+                                                style={{
+                                                    width: "40px",
+                                                    padding: "12px",
+                                                    backgroundColor: "#F3F4F6",
+                                                    borderBottom: "1px solid #D3DBD5"
+                                                }}
+                                            ></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sparePartsRows.length > 0 ? (
+                                            sparePartsRows.map((row, index) => (
+                                                <tr key={index}>
+                                                    <td>
+                                                        <Form.Select
+                                                            className="shadow-none"
+                                                            name={`sparepart-${index}`}
+                                                            required
+                                                            value={row.sparepart_id}
+                                                            onChange={(e) =>
+                                                                handleRowChange(
+                                                                    index,
+                                                                    "sparepart_id",
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            isInvalid={
+                                                                !!formErrors[`sparepart-${index}`]
+                                                            }
+                                                            style={{
+                                                                fontSize: "14px",
+                                                                border: "none",
+                                                                outline: "none",
+                                                                boxShadow: "none",
+                                                                backgroundColor: "transparent",
+                                                                height: "38px"
+                                                            }}
+                                                        >
+                                                            <option value="">Select Spare part</option>
+                                                            {availableSpareparts
+                                                                .filter(
+                                                                    (sparepart) =>
+                                                                        row.sparepart_id ===
+                                                                        String(sparepart.id) ||
+                                                                        !sparePartsRows.some(
+                                                                            (r, i) =>
+                                                                                i !== index &&
+                                                                                String(r.sparepart_id) ===
+                                                                                String(sparepart.id)
+                                                                        )
+                                                                )
+                                                                .map((sparepart) => (
+                                                                    <option
+                                                                        key={sparepart.id}
+                                                                        value={sparepart.id}
+                                                                    >
+                                                                        {sparepart.name}
+                                                                    </option>
+                                                                ))}
+                                                        </Form.Select>
+                                                        <Form.Control.Feedback
+                                                            type="invalid"
+                                                            className="d-block mt-0"
+                                                        >
+                                                            {formErrors[`sparepart-${index}`]}
+                                                        </Form.Control.Feedback>
+                                                    </td>
+                                                    <td>
+                                                        <Form.Control
+                                                            type="number"
+                                                            name={`quantity-${index}`}
+                                                            placeholder="Enter Quantity"
+                                                            required
+                                                            min="1"
+                                                            value={row.quantity}
+                                                            onChange={(e) =>
+                                                                handleRowChange(
+                                                                    index,
+                                                                    "quantity",
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            isInvalid={
+                                                                !!formErrors[`quantity-${index}`]
+                                                            }
+                                                            style={{
+                                                                fontSize: "14px",
+                                                                border: "none",
+                                                                outline: "none",
+                                                                boxShadow: "none",
+                                                                backgroundColor: "transparent",
+                                                                height: "38px"
+                                                            }}
+                                                        />
+                                                        <Form.Control.Feedback
+                                                            type="invalid"
+                                                            className="d-block mt-0"
+                                                        >
+                                                            {formErrors[`quantity-${index}`]}
+                                                        </Form.Control.Feedback>
+                                                    </td>
+                                                    <td className="text-center align-middle">
+                                                        <Button
+                                                            variant="light"
+                                                            size="sm"
+                                                            onClick={() => handleRemoveRow(index)}
+                                                            className="p-1"
+                                                            style={{
+                                                                backgroundColor: "#FFEDED",
+                                                                borderRadius: "50%",
+                                                                width: "30px",
+                                                                height: "30px",
+                                                                padding: 0,
+                                                                lineHeight: 1
+                                                            }}
+                                                        >
+                                                            <BsDashLg
+                                                                style={{
+                                                                    color: "red",
+                                                                    fontSize: "1.2rem"
+                                                                }}
+                                                            />
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td
+                                                    colSpan="3"
+                                                    className="text-center text-muted py-3"
+                                                >
+                                                    No spare parts added yet.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {!!formErrors.items && (
+                                <div className="invalid-feedback d-block mt-1">
+                                    {formErrors.items}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="d-flex justify-content-end gap-2 mt-3">
+                            <Button className="btn-common btn-cancel" variant="light" onClick={() => setShowForm(false)}>
                                 Cancel
                             </Button>
                             <Button
@@ -1335,10 +1305,10 @@ export default function PurchaseSparepartsPage() {
                             >
                                 {editingPurchase ? "Update" : "Save"}
                             </Button>
-                            </div>
-                        </Form>
-                        </Offcanvas.Body>
-                    </Offcanvas>
+                        </div>
+                    </Form>
+                </Offcanvas.Body>
+            </Offcanvas>
 
             {/* Return Form */}
             <Offcanvas

@@ -85,16 +85,18 @@ export default function OverviewPage() {
     setCountLoading(true);
     setLoading(true);
     try {
-      const [vendorsRes, customersRes, salesSummaryRes] = await Promise.all([
+      const [vendorsRes, customersRes, salesSummaryRes, productsold] = await Promise.all([
         axios.get(`${API_BASE_URL}/vendors/count`),
         axios.get(`${API_BASE_URL}/customers/count`),
         axios.get(`${API_BASE_URL}/sales-summary`),
+        axios.get(`${API_BASE_URL}/products/sold/count`),
       ]);
 
       setStats({
         vendors: vendorsRes.data.count ?? 0,
         customers: customersRes.data.count ?? 0,
         productSales: salesSummaryRes.data.totalProductsSold ?? 0,
+        soldCount: productsold.data.count ?? 0,
       });
 
       const years = salesSummaryRes.data.yearlySales.map((y) => y.year);
@@ -226,7 +228,7 @@ export default function OverviewPage() {
   return (
     <>
       <Row className="mb-4 g-3">
-        <Col xs={12} sm={6} md={4}>
+        <Col xs={12} sm={6} md={3}>
           <Card
             className="border-0 shadow-sm h-100"
             style={{ backgroundColor: "#E3F5FF" }}
@@ -241,7 +243,7 @@ export default function OverviewPage() {
             </Card.Body>
           </Card>
         </Col>
-        <Col xs={12} sm={6} md={4}>
+        <Col xs={12} sm={6} md={3}>
           <Card
             className="border-0 shadow-sm h-100"
             style={{ backgroundColor: "#E5ECF6" }}
@@ -256,7 +258,7 @@ export default function OverviewPage() {
             </Card.Body>
           </Card>
         </Col>
-        <Col xs={12} sm={6} md={4}>
+        <Col xs={12} sm={6} md={3}>
           <Card
             className="border-0 shadow-sm h-100"
             style={{ backgroundColor: "#E5ECF6" }}
@@ -267,6 +269,21 @@ export default function OverviewPage() {
                 <SkeletonCard />
               ) : (
                 <h2>{formatCount(stats.productSales)}</h2>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} md={3}>
+          <Card
+            className="border-0 shadow-sm h-100"
+            style={{ backgroundColor: "#cbddf8ff" }}
+          >
+            <Card.Body>
+              <h6 className="fw-semibold">Sold Products</h6>
+              {countLoading ? (
+                <SkeletonCard />
+              ) : (
+                <h2>{formatCount(stats.soldCount)}</h2>
               )}
             </Card.Body>
           </Card>

@@ -3,7 +3,7 @@ import React from "react";
 import { Button } from "react-bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTrack, onRepair, onUrgent, urgentStatus }) {
+export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTrack, onRepair, onUrgent, urgentStatus, onWarranty }) {
   // Define a consistent style for all action buttons
   const buttonStyle = {
     borderColor: "#2E3A59",
@@ -111,6 +111,29 @@ export default function ActionButtons({ onPdf, onEdit, onDelete, onReturn, onTra
           style={urgentButtonStyle}
         >
           <i className="bi bi-exclamation-circle-fill"></i>
+        </Button>
+      )}
+
+      {onWarranty && (
+        <Button
+          size="sm"
+          variant="outline-primary"
+          title="Warranty"
+          onClick={onWarranty}
+          className="me-1"
+          style={{
+            borderColor: "#2E3A59",
+            color: "#2E3A59",
+            backgroundColor: "transparent",
+            width: "32px",
+            height: "32px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "4px",
+          }}
+        >
+          <i className="bi bi-shield-check"></i>
         </Button>
       )}
     </>

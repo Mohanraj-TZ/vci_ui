@@ -5,6 +5,8 @@ import "../../index.css";
 import ComponentStock from "./OverviewComponentStock";
 import LastSalesList from "./OverviewLastSalesList";
 import LastPurchaseList from "./OverviewLastPurchaseList";
+import DamagedSpareparts from "./Overview_ComponentStockDamage";
+import DashboardStats from "./PcbServiceOverview";
 
 const Overview = () => {
   return (
@@ -28,6 +30,20 @@ const Overview = () => {
         <div className="col-lg-12 d-flex">
           <div className="w-100 d-flex flex-column">
             <ComponentStock />
+          </div>
+        </div>
+      </div>
+      <div className="row g-4 align-items-stretch mt-1">
+        <div className="col-lg-12 d-flex">
+          <div className="w-100 d-flex flex-column">
+            <DamagedSpareparts />
+          </div>
+        </div>
+      </div>
+       <div className="row g-4 align-items-stretch mt-1">
+        <div className="col-lg-12 d-flex">
+          <div className="w-100 d-flex flex-column">
+            <DashboardStats/>
           </div>
         </div>
       </div>

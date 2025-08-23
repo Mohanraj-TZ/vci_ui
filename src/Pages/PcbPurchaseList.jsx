@@ -26,74 +26,45 @@ export default function PurchaseListPage() {
   const [sortColumn, setSortColumn] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
 
-  const [fromDate, setFromDate] = useState("");
-const [toDate, setToDate] = useState("");
-const [invoiceNo, setInvoiceNo] = useState("");
-
-  // const fetchPurchases = () => {
-  //   setLoading(true);
-  //   axios
-  //     .get(`${API_BASE_URL}/purchase`)
-  //     .then((res) => setPurchaseData(Array.isArray(res.data) ? res.data : []))
-  //     .catch(() => toast.error("Failed to fetch purchase list."))
-  //     .finally(() => setLoading(false));
-  // };
-
   const fetchPurchases = () => {
-  setLoading(true);
-  axios
-    .get(`${API_BASE_URL}/purchase`, {
-      params: { from_date: fromDate, to_date: toDate, invoice_no: invoiceNo }
-        // params: { from_date: fromDate, to_date: toDate }
-    })
-    .then((res) => setPurchaseData(Array.isArray(res.data) ? res.data : []))
-    .catch(() => toast.error("Failed to fetch filtered purchases"))
-    .finally(() => setLoading(false));
-};
+    setLoading(true);
+    axios
+      .get(`${API_BASE_URL}/purchase`)
+      .then((res) => setPurchaseData(Array.isArray(res.data) ? res.data : []))
+      .catch(() => toast.error("Failed to fetch purchase list."))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => { fetchPurchases(); }, []);
 
   const handleWarrantyDetails = async (purchaseId) => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/pcb-warranty/${purchaseId}`);
-      setWarrantyData(res.data);
-      setShowWarrantyModal(true);
-    } catch {
-      toast.error("Failed to fetch warranty details");
-    }
-  };
-
-  const handleEdit = (item) => navigate(`/purchase/${item.id}/edit`);
-  const handleReturn = (invoice_no) =>
-    navigate(`/pcb-purchase-return/add?invoice=${encodeURIComponent(invoice_no)}`);
-
-
-  const handleDownloadPdf = () => {
-  const url = `${API_BASE_URL}/pcb-purchase-report/pdf?from_date=${fromDate}&to_date=${toDate}&invoice_no=${invoiceNo}`;
-  window.open(url, "_blank"); // Opens PDF in new tab
-};
-
-const handleDownloadExcel = async () => {
   try {
-    const url = `${API_BASE_URL}/pcb-purchase-report/csv`;
-    const params = { from_date: fromDate, to_date: toDate, invoice_no: invoiceNo };
-    const { data } = await axios.get(url, { params, responseType: 'blob' });
+    setLoading(true);
+    const res = await axios.get(`${API_BASE_URL}/pcb-warranty/${purchaseId}`);
 
-    const blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const fname = `pcb_purchase_report_${fromDate || 'all'}_${toDate || 'all'}.csv`;
+    // Make sure we have an array
+    const items = Array.isArray(res.data.data) ? res.data.data : [];
 
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', fname);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  } catch (e) {
-    toast.error('Failed to download CSV');
+    setWarrantyData({
+      items: items,
+      // Optional: grab invoice/vendor from first item
+      invoice_no: items[0]?.invoice_no || "-",
+      vendor: items[0]?.vendor || "-"
+    });
+
+    setShowWarrantyModal(true);
+  } catch (err) {
+    toast.error("Failed to fetch warranty details");
+  } finally {
+    setLoading(false);
   }
 };
 
 
+
+  const handleEdit = (item) => navigate(`/purchase/${item.id}/edit`);
+  const handleReturn = (invoice_no) =>
+    navigate(`/pcb-purchase-return/add?invoice=${encodeURIComponent(invoice_no)}`);
 
   const handleDelete = (purchaseId) => {
     Swal.fire({
@@ -186,65 +157,6 @@ const handleDownloadExcel = async () => {
           </div>
         </div>
 
-
-        <div className="row mb-3">
-  <div className="col-md-2">
-    <Form.Label>From Date</Form.Label>
-    <Form.Control
-      type="date"
-      size="sm"
-      value={fromDate}
-      onChange={(e) => setFromDate(e.target.value)}
-    />
-  </div>
-  <div className="col-md-2">
-    <Form.Label>To Date</Form.Label>
-    <Form.Control
-      type="date"
-      size="sm"
-      value={toDate}
-      onChange={(e) => setToDate(e.target.value)}
-    />
-  </div>
-  {/* <div className="col-md-2">
-    <Form.Label>Invoice No</Form.Label>
-    <Form.Control
-      type="text"
-      size="sm"
-      placeholder="Enter Invoice No"
-      value={invoiceNo}
-      onChange={(e) => setInvoiceNo(e.target.value)}
-    />
-  </div> */}
-  <div className="col-md-8 d-flex align-items-end">
-    <Button
-      size="sm"
-      variant="secondary"
-      className="me-2"
-      onClick={fetchPurchases}
-    >
-      Apply Filter
-    </Button>
-    <Button
-      size="sm"
-      variant="success"
-          className="me-2"
-      onClick={handleDownloadPdf}
-    >
-      Download PDF
-    </Button>
-        <Button
-    size="sm"
-    variant="success"
-    onClick={handleDownloadExcel}
-  >
-    Download Excel
-  </Button>
-  
-  </div>
-</div>
-
-
         <div className="table-responsive">
           <table className="table table-sm custom-table align-middle mb-0">
             <thead style={{ backgroundColor: "#2E3A59", color: "white", fontSize: "0.82rem", height: "40px", verticalAlign: "middle" }}>
@@ -256,9 +168,9 @@ const handleDownloadExcel = async () => {
                 {renderHeader("Invoice Date", "invoice_date")}
                 {renderHeader("Category", "category")}
                 {renderHeader("Quantity", "quantity")}
-                {renderHeader("Status", "status")}
-                {renderHeader("Warranty Status", "warranty_status")}
-                {renderHeader("Expired Service Cost", "expired_service_cost")}
+                {/* {renderHeader("Status", "status")} */}
+                {/* {renderHeader("Warranty Status", "warranty_status")} */}
+                {/* {renderHeader("Expired Service Cost", "expired_service_cost")} */}
                 <th style={{ width: "140px",backgroundColor: "#2E3A59",
                     color: "white", }}>Actions</th>
               </tr>
@@ -279,9 +191,9 @@ const handleDownloadExcel = async () => {
                     <td>{item.invoice_date}</td>
                     <td>{item.category}</td>
                     <td>{item.quantity}</td>
-                    <td>{item.status}</td>
-                    <td>{item.warranty_status}</td>
-                    <td>{item.expired_service_cost}</td>
+                    {/* <td>{item.status}</td> */}
+                    {/* <td>{item.warranty_status}</td> */}
+                    {/* <td>{item.expired_service_cost}</td> */}
                     <td className="text-center" style={{ width: "130px" }}>
                       <ActionButtons
                         onPdf={() => handleGenerateInvoice(item.id)}
@@ -302,49 +214,74 @@ const handleDownloadExcel = async () => {
       </Card>
 
       {/* Warranty Modal */}
+      {/* Warranty Modal */}
       {showWarrantyModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Warranty Details</h5>
-                <button type="button" className="btn-close" onClick={() => setShowWarrantyModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                {warrantyData?.items?.length ? (
-                  <table className="table table-sm">
-                    <thead>
-                      <tr>
-                        <th>Category</th>
-                        <th>From Serial</th>
-                        <th>To Serial</th>
-                        <th>Warranty Start</th>
-                        <th>Warranty End</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {warrantyData.items.map((item, idx) => (
-                        <tr key={idx}>
-                          <td>{item.category}</td>
-                          <td>{item.from_serial}</td>
-                          <td>{item.to_serial}</td>
-                          <td>{item.warranty_start_date}</td>
-                          <td>{item.warranty_end_date}</td>
-                          <td>{item.warranty_status}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : <div>No warranty data found.</div>}
-              </div>
-              <div className="modal-footer">
-                <Button variant="secondary" onClick={() => setShowWarrantyModal(false)}>Close</Button>
-              </div>
-            </div>
-          </div>
+  <div
+    className="offcanvas offcanvas-end show"
+    tabIndex="-1"
+    style={{ visibility: "visible", backgroundColor: "#fff", width: "500px" }}
+  >
+    <div className="offcanvas-header">
+      <h5 className="offcanvas-title">
+        Warranty Details - Invoice #{warrantyData?.invoice_no || "-"}
+      </h5>
+      <button
+        type="button"
+        className="btn-close text-reset"
+        onClick={() => setShowWarrantyModal(false)}
+      ></button>
+    </div>
+    <div className="offcanvas-body">
+      {loading ? (
+        <div className="text-center py-4">
+          <Spinner animation="border" />
         </div>
+      ) : warrantyData?.items?.length > 0 ? (
+        <>
+          <p><strong>Vendor:</strong> {warrantyData.vendor || "-"}</p>
+          <table className="table table-bordered table-hover table-sm mt-2">
+            <thead className="bg-dark text-white">
+              <tr>
+                <th>#</th>
+                <th>Category</th>
+                <th>From Serial</th>
+                <th>To Serial</th>
+                <th>Warranty Start</th>
+                <th>Warranty End</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {warrantyData.items.map((item, idx) => (
+                <tr key={idx}>
+                  <td>{idx + 1}</td>
+                  <td>{item.category_id}</td>
+                  <td>{item.from_serial || "-"}</td>
+                  <td>{item.to_serial || "-"}</td>
+                  <td>{item.warranty_start_date || "-"}</td>
+                  <td>{item.warranty_end_date || "-"}</td>
+                  <td>
+                    {item.warranty_status?.toLowerCase() === "active" ? (
+                      <span className="badge bg-success">Active</span>
+                    ) : (
+                      <span className="badge bg-danger">Expired</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : (
+        <div className="text-center text-muted py-3">No warranty data found.</div>
       )}
+    </div>
+  </div>
+)}
+
+
+
+
 
       <ToastContainer position="top-right" autoClose={2500} hideProgressBar={false} />
     </div>

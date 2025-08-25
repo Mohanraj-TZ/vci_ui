@@ -195,6 +195,19 @@ export default function PurchaseReturnPage() {
                                         {/* <Col md={6}>
                                             <span className="text-dark fw-semibold">Quantity:</span> {purchaseData.quantity}
                                         </Col> */}
+
+                                          <Col md={6}>
+                                            <span className="text-dark fw-semibold">Mobile:</span> {purchaseData.mobile}
+                                          </Col>
+                                          <Col md={6}>
+                                            <span className="text-dark fw-semibold">Email:</span> {purchaseData.email}
+                                          </Col>
+                                          <Col md={6}>
+                                            <span className="text-dark fw-semibold">Address:</span> {purchaseData.address}
+                                          </Col>
+                                          <Col md={6}>
+                                            <span className="text-dark fw-semibold">City:</span> {purchaseData.city}
+                                          </Col>
                                     </Row>
                                 )}
                             </div>
@@ -211,41 +224,45 @@ export default function PurchaseReturnPage() {
                                         <tr>
                                             <th>#</th>
                                             <th>Serial No</th>
+                                            
+                                            <th>category</th>
                                             <th>Remark</th>
                                             <th className="text-center">Return?</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {returnItems.map((item, index) => (
-                                            <tr key={item.id}>
-                                                <td>{index + 1}</td>
-                                                <td>{item.serial_no}</td>
-                                                <td>
-                                                    <Form.Control
-                                                        size="sm"
-                                                        value={item.remark}
-                                                        onChange={(e) => {
-                                                            const updated = [...returnItems];
-                                                            updated[index].remark = e.target.value;
-                                                            setReturnItems(updated);
-                                                        }}
-                                                        placeholder="Enter remark"
-                                                    />
-                                                </td>
-                                                <td className="text-center">
-                                                    <Form.Check
-                                                        type="checkbox"
-                                                        checked={item.selected}
-                                                        onChange={(e) => {
-                                                            const updated = [...returnItems];
-                                                            updated[index].selected = e.target.checked;
-                                                            setReturnItems(updated);
-                                                        }}
-                                                    />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
+    {returnItems.map((item, index) => (
+        <tr key={item.id}>
+            <td>{index + 1}</td>
+            <td>{item.serial_no}</td>
+            <td>{item.category_name}</td> {/* Show category */}
+            <td>
+                <Form.Control
+                    size="sm"
+                    value={item.remark}
+                    onChange={(e) => {
+                        const updated = [...returnItems];
+                        updated[index].remark = e.target.value;
+                        setReturnItems(updated);
+                    }}
+                    placeholder="Enter remark"
+                />
+            </td>
+            <td className="text-center">
+                <Form.Check
+                    type="checkbox"
+                    checked={item.selected}
+                    onChange={(e) => {
+                        const updated = [...returnItems];
+                        updated[index].selected = e.target.checked;
+                        setReturnItems(updated);
+                    }}
+                />
+            </td>
+        </tr>
+    ))}
+</tbody>
+
                                 </Table>
                             </div>
                         </section>

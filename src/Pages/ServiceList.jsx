@@ -510,7 +510,7 @@ await axios.put(`${API_BASE_URL}/urgentvci/${itemId}`, { is_urgent: newUrgentSta
                             >
                                 <span style={{ fontSize: "0.9rem", verticalAlign: "middle" }}>↻</span>
                             </Button>
-                            <Button
+{/*                             <Button
                                 size="sm"
                                 onClick={() => navigate("/service-vci/add")}
                                 style={{
@@ -519,10 +519,26 @@ await axios.put(`${API_BASE_URL}/urgentvci/${itemId}`, { is_urgent: newUrgentSta
                                     color: "#fff",
                                 }}
                             >
-                                <span className="me-1" style={{ fontSize: "1.2rem", verticalAlign: "middle" }}>
+                                <span className="ms" style={{ fontSize: "1.2rem", verticalAlign: "middle" }}>
                                 </span>{" "}
                                 + Add Service VCI
-                            </Button>
+                            </Button> */}
+                <Button
+                  size="sm"
+                  onClick={() => navigate("/service-vci/add")}
+                  className="ms-2"
+                  style={{
+                    backgroundColor: '#2FA64F',
+                    borderColor: '#2FA64F',
+                    color: '#fff',
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.8rem',
+                    minWidth: '90px',
+                    height: '28px',
+                  }}
+                >
+                  + Add New
+                </Button>
                         </div>
                         <Search
                             search={search}

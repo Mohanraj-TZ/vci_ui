@@ -18,6 +18,7 @@ export default function PurchaseListPage() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [search, setSearch] = useState("");
+const [defaultVciData, setDefaultVciData] = useState([]);
 
   // Warranty modal state
   const [showWarrantyModal, setShowWarrantyModal] = useState(false);
@@ -146,13 +147,22 @@ export default function PurchaseListPage() {
             <Button variant="outline-secondary" size="sm" className="me-2" onClick={fetchPurchases}>
               <i className="bi bi-arrow-clockwise"></i>
             </Button>
-            <Button
-              size="sm"
-              onClick={() => navigate("/purchase/add")}
-              style={{ backgroundColor: '#2FA64F', borderColor: '#2FA64F', color: '#fff', padding: '0.25rem 0.5rem', fontSize: '0.8rem', minWidth: '90px', height: '28px' }}
-            >
-              <i className="bi bi-plus-lg me-1"></i> Add Purchase
-            </Button>
+<Button
+  size="sm"
+  onClick={() => navigate("/purchase/add")}
+  style={{ backgroundColor: '#2FA64F', borderColor: '#2FA64F', color: '#fff', padding: '0.25rem 0.5rem', fontSize: '0.8rem', minWidth: '90px', height: '28px', marginRight: '8px' }}
+>
+  <i className="bi bi-plus-lg me-1"></i> Add Purchase
+</Button>
+
+<Button
+  size="sm"
+  onClick={() => navigate("/DefaultvciPage")}
+  style={{ backgroundColor: '#2FA64F', borderColor: '#2FA64F', color: '#fff', padding: '0.25rem 0.5rem', fontSize: '0.8rem', minWidth: '90px', height: '28px' }}
+>
+  <i className="bi bi-plus-lg me-1"></i> default vci
+</Button>
+
             <Search search={search} setSearch={setSearch} perPage={perPage} setPerPage={setPerPage} setPage={setPage} />
           </div>
         </div>

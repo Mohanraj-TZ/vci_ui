@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Button, Row, Col } from 'react-bootstrap';
+import { Form, Button, Row, Col, Card } from 'react-bootstrap';
 import Select from 'react-select';
 import axios from 'axios';
 import { API_BASE_URL } from "../api";
@@ -18,12 +18,12 @@ export default function DefaultvciPage() {
     invoice_no: '',
     invoice_date: ''
   });
-  const [categoryBlocks, setCategoryBlocks] = useState([
-    { category_id: null, from_serial: '', to_serial: '' }
-  ]);
+const [categoryBlocks, setCategoryBlocks] = useState([
+  { category_id: '', from_serial: '', to_serial: '', warranty_start_date: '', warranty_end_date: '',  service_cost: '' }
+]);
+
   const [loading, setLoading] = useState(true);
 
-  // Helper function to get the authentication headers
   const getAuthHeaders = () => {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -45,6 +45,7 @@ export default function DefaultvciPage() {
     option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? '#f8f9fa' : '#fff', color: '#000' }),
   };
 
+  // Fetch dropdowns (vendors & categories) with authentication
   const fetchDropdownData = async () => {
     try {
       // Corrected: Passing authentication headers to the axios.get call
@@ -77,7 +78,9 @@ export default function DefaultvciPage() {
             p.items.map(item => ({
               category_id: item.category_id,
               from_serial: item.from_serial,
-              to_serial: item.to_serial
+              to_serial: item.to_serial,
+               warranty_start_date: item.warranty_start_date || '',
+              warranty_end_date: item.warranty_end_date || ''
             }))
           );
         }
@@ -137,57 +140,52 @@ export default function DefaultvciPage() {
     setCategoryBlocks(prev => prev.filter((_, i) => i !== index));
   };
 
-const handleSubmit = async e => {
-  e.preventDefault();
+  // Submit with authentication
+  const handleSubmit = async e => {
+    e.preventDefault();
 
-  // Validate form locally
-  const errors = {};
-  if (!formData.vendor_id) errors.vendor_id = 'Vendor is required';
-  if (!formData.invoice_no.trim()) errors.invoice_no = 'Invoice number is required';
-  if (!formData.invoice_date) errors.invoice_date = 'Invoice date is required';
-  categoryBlocks.forEach((block, idx) => {
-    if (!block.category_id) errors[`category_${idx}`] = 'Category is required';
-    if (!block.from_serial) errors[`from_serial_${idx}`] = 'From Serial is required';
-    if (!block.to_serial) errors[`to_serial_${idx}`] = 'To Serial is required';
-  });
-  setFormErrors(errors);
-  if (Object.keys(errors).length > 0) return;
+    const errors = {};
+    if (!formData.vendor_id) errors.vendor_id = 'Vendor is required';
+    if (!formData.invoice_no.trim()) errors.invoice_no = 'Invoice number is required';
+    if (!formData.invoice_date) errors.invoice_date = 'Invoice date is required';
+    categoryBlocks.forEach((block, idx) => {
+      if (!block.category_id) errors[`category_${idx}`] = 'Category is required';
+      if (!block.from_serial) errors[`from_serial_${idx}`] = 'From Serial is required';
+      if (!block.to_serial) errors[`to_serial_${idx}`] = 'To Serial is required';
+      if (!block.warranty_start_date) errors[`warranty_start_date_${idx}`] = 'Warranty Start Date is required';
+      if (!block.warranty_end_date) errors[`warranty_end_date_${idx}`] = 'Warranty End Date is required';
+      // if (!block.warranty_status) errors[`warranty_status_${idx}`] = 'Warranty Status is required';
+      if (block.service_cost === '' || isNaN(block.service_cost)) {
+  errors[`service_cost_${idx}`] = 'Service Cost is required and must be a number';
+}
+    });
 
-  try {
-    let purchaseId = id; // existing purchase
-    // Create new purchase if needed
-    if (!purchaseId) {
-      const res = await axios.post(`${API_BASE_URL}/defaultvci`, {
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    try {
+      const payload = {
         vendor_id: formData.vendor_id,
         invoice_no: formData.invoice_no,
-        invoice_date: formData.invoice_date
-      }, getAuthHeaders());
-      purchaseId = res.data.purchase_id;
+        invoice_date: formData.invoice_date,
+        categories: categoryBlocks
+      };
+
+      if (id) {
+        await axios.put(`${API_BASE_URL}/pcbupdate/${id}`, payload, getAuthHeaders());
+        toast.success('Purchase updated successfully!');
+      } else {
+        await axios.post(`${API_BASE_URL}/defaultvci`, payload, getAuthHeaders());
+        toast.success('Purchase added successfully!');
+      }
+      setTimeout(() => navigate('/purchaseOrder'), 1000);
+    } catch (error) {
+      if (error.response?.status === 422 && error.response.data.errors) {
+        setFormErrors(error.response.data.errors);
+      }
+      toast.error(error.response?.data?.message || 'Failed to save purchase');
     }
-const filteredCategories = categoryBlocks.filter(c =>
-  c.category_id && c.from_serial && c.to_serial
-);
-
-
-    // Now create VCIs
-    const vciPayload = {
-      purchase_id: purchaseId,
-      categories: categoryBlocks
-    };
-
-    await axios.post(`${API_BASE_URL}/defaultvci`, vciPayload, getAuthHeaders());
-
-    toast.success('Purchase and VCIs created successfully!');
-    setTimeout(() => navigate('/purchaseOrder'), 1000);
-
-  } catch (error) {
-    if (error.response?.status === 422 && error.response.data.errors) {
-      setFormErrors(error.response.data.errors);
-    }
-    toast.error(error.response?.data?.message || 'Failed to save purchase');
-  }
-};
-
+  };
 
   if (loading) return <div className="p-4">Loading...</div>;
 
@@ -200,78 +198,87 @@ const filteredCategories = categoryBlocks.filter(c =>
         </Button>
       </div>
 
-      <Form onSubmit={handleSubmit}>
-        <Row className="mb-3 pt-4">
-          <Col md={4}>
-            <Form.Label>Vendor</Form.Label>
-            <Select
-              styles={customSelectStyles}
-              value={dropdowns.vendors.find(v => v.id === formData.vendor_id) ? { label: dropdowns.vendors.find(v => v.id === formData.vendor_id).name, value: formData.vendor_id } : null}
-              options={dropdowns.vendors.map(v => ({ label: v.name, value: v.id }))}
-              onChange={sel => handleSelectChange(sel, 'vendor_id')}
-              placeholder="Select vendor"
-            />
-            {formErrors.vendor_id && <div className="text-danger small">{formErrors.vendor_id}</div>}
-          </Col>
-          <Col md={4}>
-            <Form.Label>Invoice Number</Form.Label>
-            <Form.Control
-              type="text"
-              name="invoice_no"
-              value={formData.invoice_no}
-              onChange={handleChange}
-            />
-            {formErrors.invoice_no && <div className="text-danger small">{formErrors.invoice_no}</div>}
-          </Col>
-          <Col md={4}>
-            <Form.Label>Invoice Date</Form.Label>
-            <Form.Control
-              type="date"
-              name="invoice_date"
-              value={formData.invoice_date}
-              onChange={handleChange}
-            />
-            {formErrors.invoice_date && <div className="text-danger small">{formErrors.invoice_date}</div>}
-          </Col>
-        </Row>
-
-        {categoryBlocks.map((block, index) => (
-          <Row className="mb-3" key={index}>
+      <Card className="shadow-sm p-4">
+        <Form onSubmit={handleSubmit}>
+          <Row className="mb-4">
             <Col md={4}>
-              <Form.Label>Category</Form.Label>
+              <Form.Label>Vendor</Form.Label>
               <Select
                 styles={customSelectStyles}
-                value={dropdowns.categories.find(c => c.id === block.category_id) ? { label: dropdowns.categories.find(c => c.id === block.category_id).name || dropdowns.categories.find(c => c.id === block.category_id).category, value: block.category_id } : null}
-                options={dropdowns.categories.map(c => ({ label: c.name || c.category, value: c.id }))}
-                onChange={sel => updateCategoryBlock(index, 'category_id', sel ? sel.value : null)}
-                placeholder="Select category"
+                value={dropdowns.vendors.find(v => v.id === formData.vendor_id) ? { label: dropdowns.vendors.find(v => v.id === formData.vendor_id).name, value: formData.vendor_id } : null}
+                options={dropdowns.vendors.map(v => ({ label: v.name, value: v.id }))}
+                onChange={sel => handleSelectChange(sel, 'vendor_id')}
+                placeholder="Select vendor"
               />
-              {formErrors[`category_${index}`] && <div className="text-danger small">{formErrors[`category_${index}`]}</div>}
+              {formErrors.vendor_id && <div className="text-danger small">{formErrors.vendor_id}</div>}
             </Col>
-            <Col md={3}>
-              <Form.Label>From Serial</Form.Label>
-              <Form.Control
-                type="text"
-                value={block.from_serial}
-                onChange={e => updateCategoryBlock(index, 'from_serial', e.target.value)}
-              />
-              {formErrors[`from_serial_${index}`] && <div className="text-danger small">{formErrors[`from_serial_${index}`]}</div>}
+            <Col md={4}>
+              <Form.Label>Invoice Number</Form.Label>
+              <Form.Control type="text" name="invoice_no" value={formData.invoice_no} onChange={handleChange} />
+              {formErrors.invoice_no && <div className="text-danger small">{formErrors.invoice_no}</div>}
             </Col>
-            <Col md={3}>
-              <Form.Label>To Serial</Form.Label>
-              <Form.Control
-                type="text"
-                value={block.to_serial}
-                onChange={e => updateCategoryBlock(index, 'to_serial', e.target.value)}
-              />
-              {formErrors[`to_serial_${index}`] && <div className="text-danger small">{formErrors[`to_serial_${index}`]}</div>}
-            </Col>
-            <Col md={2} className="d-flex align-items-end">
-              {index > 0 && (
-                <Button variant="danger" onClick={() => removeCategoryBlock(index)}>Remove</Button>
-              )}
+            <Col md={4}>
+              <Form.Label>Invoice Date</Form.Label>
+              <Form.Control type="date" name="invoice_date" value={formData.invoice_date} onChange={handleChange} />
+              {formErrors.invoice_date && <div className="text-danger small">{formErrors.invoice_date}</div>}
             </Col>
           </Row>
+
+          {categoryBlocks.map((block, index) => (
+            <Card key={index} className="mb-3 p-3 border border-secondary shadow-sm">
+              <Row className="align-items-end">
+                <Col md={3}>
+                  <Form.Label>Category</Form.Label>
+                  <Select
+                    styles={customSelectStyles}
+                    value={dropdowns.categories.find(c => c.id === block.category_id) ? { label: dropdowns.categories.find(c => c.id === block.category_id).name || dropdowns.categories.find(c => c.id === block.category_id).category, value: block.category_id } : null}
+                    options={dropdowns.categories.map(c => ({ label: c.name || c.category, value: c.id }))}
+                    onChange={sel => updateCategoryBlock(index, 'category_id', sel ? sel.value : null)}
+                    placeholder="Select category"
+                  />
+                  {formErrors[`category_${index}`] && <div className="text-danger small">{formErrors[`category_${index}`]}</div>}
+                </Col>
+                <Col md={2}>
+                  <Form.Label>From Serial</Form.Label>
+                  <Form.Control type="text" value={block.from_serial} onChange={e => updateCategoryBlock(index, 'from_serial', e.target.value)} />
+                  {formErrors[`from_serial_${index}`] && <div className="text-danger small">{formErrors[`from_serial_${index}`]}</div>}
+                </Col>
+                <Col md={2}>
+                  <Form.Label>To Serial</Form.Label>
+                  <Form.Control type="text" value={block.to_serial} onChange={e => updateCategoryBlock(index, 'to_serial', e.target.value)} />
+                  {formErrors[`to_serial_${index}`] && <div className="text-danger small">{formErrors[`to_serial_${index}`]}</div>}
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Warranty Start</Form.Label>
+                  <Form.Control type="date" value={block.warranty_start_date} onChange={e => updateCategoryBlock(index, 'warranty_start_date', e.target.value)} />
+                  {formErrors[`warranty_start_date_${index}`] && <div className="text-danger small">{formErrors[`warranty_start_date_${index}`]}</div>}
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Warranty End</Form.Label>
+                  <Form.Control type="date" value={block.warranty_end_date} onChange={e => updateCategoryBlock(index, 'warranty_end_date', e.target.value)} />
+                  {formErrors[`warranty_end_date_${index}`] && <div className="text-danger small">{formErrors[`warranty_end_date_${index}`]}</div>}
+                </Col>
+                <Col md={2}>
+  <Form.Label>Service Cost</Form.Label>
+  <Form.Control
+    type="number"
+    value={block.service_cost}
+    onChange={e => updateCategoryBlock(index, 'service_cost', e.target.value)}
+    placeholder="0.00"
+  />
+  {formErrors[`service_cost_${index}`] && <div className="text-danger small">{formErrors[`service_cost_${index}`]}</div>}
+</Col>
+{/* 
+                <Col md={1}>
+                  <Form.Label>Status</Form.Label>
+                  <Form.Control type="text" value={block.warranty_status} onChange={e => updateCategoryBlock(index, 'warranty_status', e.target.value)} />
+                  {formErrors[`warranty_status_${index}`] && <div className="text-danger small">{formErrors[`warranty_status_${index}`]}</div>}
+                </Col> */}
+              </Row>
+              <div className="d-flex justify-content-end mt-2">
+                {index > 0 && <Button variant="danger" size="sm" onClick={() => removeCategoryBlock(index)}>Remove</Button>}
+              </div>
+      </Card>
         ))}
 
         <div className="mb-3">
@@ -286,6 +293,7 @@ const filteredCategories = categoryBlocks.filter(c =>
         </div>
       </Form>
       <ToastContainer position="top-right" autoClose={3000} />
+      </Card>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { API_BASE_URL } from "../api";
 import Breadcrumb from "./Components/Breadcrumb";
 import Pagination from "./Components/Pagination";
 import Search from "./Components/Search";
-
+import { Link } from 'react-router-dom';
 const styles = `
   .table-header-changed-vci {
     background-color: #2E3A59;
@@ -129,7 +129,6 @@ const handleDelete = async (vciToDelete) => {
   try {
     // Loop through each item in the grouped entry and send a DELETE request
     const deletePromises = vciToDelete.items.map((item) => {
-      console.log(`Deleting item with ID: ${item.id}`); // For debugging
       return axios.delete(`${API_BASE_URL}/urgentvci/${item.id}`);
     });
 
@@ -426,7 +425,7 @@ const handleDelete = async (vciToDelete) => {
                 {sortField === "items" &&
                     (sortDirection === "asc" ? "▲" : "▼")}
               </th>
-              {/* <th
+              { <th
                 style={{
                   textAlign: "center",
                   width: "110px",
@@ -437,7 +436,7 @@ const handleDelete = async (vciToDelete) => {
                 }}
               >
                 Action
-              </th> */}
+              </th> }
             </tr>
             </thead>
             <tbody>
@@ -483,16 +482,22 @@ const handleDelete = async (vciToDelete) => {
                         </Button>
                       </td>
                       <td className="text-center">
- {/* <Button
-  variant=""
-  size="sm"
-  onClick={() => navigate(`/edit-urgent-vci/${vci.items[0].id}`)}
-  className="me-1"
-  style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
->
-  <i className="bi bi-pencil-square"></i>
-</Button> */}
-              {/* <Button
+{vci.items.length > 0 && (
+<Link to={`/changed-vci/edit/${vci.id}`}>
+        {/* <Button
+            variant="outline-primary"
+            size="sm"
+            style={{
+                borderColor: "#2E3A59",
+                color: "#2E3A59",
+                backgroundColor: "transparent",
+            }}
+        >
+            <i className="bi bi-pencil-square"></i>
+        </Button> */}
+    </Link>
+)}
+              { <Button
   variant="outline-primary"
   size="sm"
   onClick={() => handleDelete(vci)}
@@ -503,7 +508,7 @@ const handleDelete = async (vciToDelete) => {
   }}
 >
   <i className="bi bi-trash"></i>
-</Button> */}
+</Button> }
                       </td>
                     </tr>
                 ))

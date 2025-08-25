@@ -27,14 +27,22 @@ const [defaultVciData, setDefaultVciData] = useState([]);
   const [sortColumn, setSortColumn] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
 
+  
+    const [fromDate, setFromDate] = useState("");
+const [toDate, setToDate] = useState("");
+const [invoiceNo, setInvoiceNo] = useState("");
+ 
   const fetchPurchases = () => {
-    setLoading(true);
-    axios
-      .get(`${API_BASE_URL}/purchase`)
-      .then((res) => setPurchaseData(Array.isArray(res.data) ? res.data : []))
-      .catch(() => toast.error("Failed to fetch purchase list."))
-      .finally(() => setLoading(false));
-  };
+  setLoading(true);
+  axios
+    .get(`${API_BASE_URL}/purchase`, {
+      params: { from_date: fromDate, to_date: toDate, invoice_no: invoiceNo }
+        // params: { from_date: fromDate, to_date: toDate }
+    })
+    .then((res) => setPurchaseData(Array.isArray(res.data) ? res.data : []))
+    .catch(() => toast.error("Failed to fetch filtered purchases"))
+    .finally(() => setLoading(false));
+};
 
   useEffect(() => { fetchPurchases(); }, []);
 
@@ -66,6 +74,32 @@ const [defaultVciData, setDefaultVciData] = useState([]);
   const handleEdit = (item) => navigate(`/purchase/${item.id}/edit`);
   const handleReturn = (invoice_no) =>
     navigate(`/pcb-purchase-return/add?invoice=${encodeURIComponent(invoice_no)}`);
+
+    const handleDownloadPdf = () => {
+  const url = `${API_BASE_URL}/pcb-purchase-report/pdf?from_date=${fromDate}&to_date=${toDate}&invoice_no=${invoiceNo}`;
+  window.open(url, "_blank"); // Opens PDF in new tab
+};
+ 
+ 
+const handleDownloadExcel = async () => {
+  try {
+    const url = `${API_BASE_URL}/pcb-purchase-report/csv`;
+    const params = { from_date: fromDate, to_date: toDate, invoice_no: invoiceNo };
+    const { data } = await axios.get(url, { params, responseType: 'blob' });
+ 
+    const blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const fname = `pcb_purchase_report_${fromDate || 'all'}_${toDate || 'all'}.csv`;
+ 
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', fname);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (e) {
+    toast.error('Failed to download CSV');
+  }
+};
 
   const handleDelete = (purchaseId) => {
     Swal.fire({
@@ -166,6 +200,69 @@ const [defaultVciData, setDefaultVciData] = useState([]);
             <Search search={search} setSearch={setSearch} perPage={perPage} setPerPage={setPerPage} setPage={setPage} />
           </div>
         </div>
+
+        
+         
+        <div className="row mb-3">
+  <div className="col-md-2">
+    <Form.Label>From Date</Form.Label>
+    <Form.Control
+      type="date"
+      size="sm"
+      value={fromDate}
+      onChange={(e) => setFromDate(e.target.value)}
+    />
+  </div>
+  <div className="col-md-2">
+    <Form.Label>To Date</Form.Label>
+    <Form.Control
+      type="date"
+      size="sm"
+      value={toDate}
+      onChange={(e) => setToDate(e.target.value)}
+    />
+  </div>
+  {/* <div className="col-md-2">
+    <Form.Label>Invoice No</Form.Label>
+    <Form.Control
+      type="text"
+      size="sm"
+      placeholder="Enter Invoice No"
+      value={invoiceNo}
+      onChange={(e) => setInvoiceNo(e.target.value)}
+    />
+  </div> */}
+  <div className="col-md-8 d-flex align-items-end">
+    <Button
+      size="sm"
+      variant="secondary"
+      className="me-2"
+      onClick={fetchPurchases}
+    >
+      Apply Filter
+    </Button>
+    <Button
+      size="sm"
+      variant="success"
+          className="me-2"
+      onClick={handleDownloadPdf}
+    >
+      Download PDF
+    </Button>
+        <Button
+    size="sm"
+    variant="success"
+    onClick={handleDownloadExcel}
+  >
+    Download Excel
+  </Button>
+ 
+  </div>
+</div>
+ 
+ 
+ 
+ 
 
         <div className="table-responsive">
           <table className="table table-sm custom-table align-middle mb-0">

@@ -10,6 +10,8 @@ import { API_BASE_URL } from "../api";
 import Breadcrumb from "./Components/Breadcrumb";
 import Search from "./Components/Search";
 import Pagination from "./Components/Pagination";
+import { useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 const MySwal = withReactContent(Swal);
 
@@ -23,6 +25,9 @@ export default function SalesListPage() {
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
 
+  const location = useLocation();
+  // const queryParams = new URLSearchParams(location.search);
+  // const invoice = queryParams.get("invoice"); // get invoice number
   // Warranty modal state
   const [showWarrantyModal, setShowWarrantyModal] = useState(false);
   const [warrantyData, setWarrantyData] = useState([]);
@@ -46,6 +51,8 @@ export default function SalesListPage() {
     }
   };
 
+
+  
   const handleDelete = async (id) => {
     const result = await MySwal.fire({
       title: "Are you sure?",
@@ -106,6 +113,11 @@ export default function SalesListPage() {
     const values = Object.values(item).join(" ").toLowerCase();
     return values.includes(search.toLowerCase());
   });
+
+    const handleReturn = (invoice_no) => {
+  navigate(`/returns/add?invoice=${encodeURIComponent(invoice_no)}`);
+};
+
 
   const sortedData = [...filteredData].sort((a, b) => {
     if (!sortField) return 0;
@@ -281,6 +293,7 @@ export default function SalesListPage() {
                           onEdit={() => navigate(`/sales/edit/${item.id}`)}
                           onDelete={() => handleDelete(item.id)}
                           onWarranty={() => handleWarranty(item.id)}
+                              onReturn={() => handleReturn(item.invoice_no)}
                         />
                       </div>
                     </td>

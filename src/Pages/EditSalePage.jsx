@@ -15,7 +15,7 @@ export default function EditSalePage() {
   const { id } = useParams();
 
   const [customers, setCustomers] = useState([]);
-  const [batches, setBatches] = useState([]);
+  // const [batches, setBatches] = useState([]);
   const [categories, setCategories] = useState([]);
   const [originalSerials, setOriginalSerials] = useState([]);
   const [availableSerials, setAvailableSerials] = useState([]);
@@ -26,7 +26,7 @@ export default function EditSalePage() {
 
   const [formData, setFormData] = useState({
     customer_id: '',
-    batch_id: '',
+    // batch_id: '',
     category_id: '',
     quantity: '',
     shipment_name: '',
@@ -126,13 +126,13 @@ export default function EditSalePage() {
   };
 
   const fetchSerialNumbers = async () => {
-    const { batch_id, category_id, quantity, from_serial } = formData;
-    if (!batch_id || !category_id || !quantity) return;
+    const {  category_id, quantity, from_serial } = formData;
+    if ( !category_id || !quantity) return;
     setLoadingSerials(true);
 
     try {
       const response = await axios.post(`${API_BASE_URL}/available-serials`, {
-        batch_id,
+        // batch_id,
         category_id,
         from_serial,
         quantity: parseInt(quantity, 10),
@@ -162,9 +162,9 @@ export default function EditSalePage() {
   useEffect(() => {
     axios.get(`${API_BASE_URL}/form-dropdowns`)
       .then(res => {
-        const { customers, batches, categories } = res.data.data;
+        const { customers,categories } = res.data.data;
         setCustomers(customers);
-        setBatches(batches);
+        // setBatches(batches);
         setCategories(categories);
       })
       .catch(err => console.error('Dropdown fetch error:', err));
@@ -176,7 +176,7 @@ export default function EditSalePage() {
 
         setFormData({
           customer_id: sale.customer_id,
-          batch_id: sale.batch_id,
+          // batch_id: sale.batch_id,
           category_id: sale.category_id,
           quantity: sale.quantity,
           shipment_name: sale.shipment_name,
@@ -219,10 +219,10 @@ export default function EditSalePage() {
 
 
   useEffect(() => {
-    if (formData.batch_id && formData.category_id && formData.from_serial && formData.quantity) {
+    if (formData.category_id && formData.from_serial && formData.quantity) {
       fetchSerialNumbers();
     }
-  }, [formData.batch_id, formData.category_id, formData.from_serial, formData.quantity]);
+  }, [formData.category_id, formData.from_serial, formData.quantity]);
 
 
   useEffect(() => {
@@ -391,7 +391,7 @@ export default function EditSalePage() {
             </Form.Group>
           </Col>
 
-          <Col md={4}>
+          {/* <Col md={4}>
             <Form.Label>Batch</Form.Label>
             <Form.Select size="sm" name="batch_id" value={formData.batch_id} onChange={handleChange}>
               <option value="">Select Batch</option>
@@ -399,7 +399,7 @@ export default function EditSalePage() {
                 <option key={b.id} value={b.id}>{b.batch}</option>
               ))}
             </Form.Select>
-          </Col>
+          </Col> */}
 
           <Col md={4}>
             <Form.Label>Category</Form.Label>

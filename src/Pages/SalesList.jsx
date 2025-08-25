@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Spinner, Card, Form } from "react-bootstrap";
+import { Button, Spinner, Card, Form, Modal, Table } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -22,6 +22,11 @@ export default function SalesListPage() {
   const [perPage, setPerPage] = useState(10);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
+
+  // Warranty modal state
+  const [showWarrantyModal, setShowWarrantyModal] = useState(false);
+  const [warrantyData, setWarrantyData] = useState([]);
+  const [selectedSale, setSelectedSale] = useState(null);
 
   useEffect(() => {
     fetchSales();
@@ -47,12 +52,12 @@ export default function SalesListPage() {
       text: "Do you really want to delete this sale?",
       icon: "warning",
       showCancelButton: true,
-       confirmButtonColor: "#d33",
+      confirmButtonColor: "#d33",
       cancelButtonColor: "#2FA64F",
       confirmButtonText: "Yes, delete it!",
       customClass: {
-        popup: "custom-compact"
-      }
+        popup: "custom-compact",
+      },
     });
 
     if (!result.isConfirmed) return;
@@ -76,6 +81,25 @@ export default function SalesListPage() {
       sortField === field && sortDirection === "asc" ? "desc" : "asc";
     setSortField(field);
     setSortDirection(direction);
+  };
+
+  // Fetch warranty data and show modal
+  const handleWarranty = async (id) => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/sales/${id}/warranty`);
+      if (res.data.success) {
+        setSelectedSale(res.data.sale);
+        setWarrantyData(res.data.warranty);
+        setShowWarrantyModal(true);
+      } else {
+        toast.error("No warranty details found.");
+      }
+    } catch {
+      toast.error("Failed to fetch warranty details.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredData = salesData.filter((item) => {
@@ -118,8 +142,11 @@ export default function SalesListPage() {
               ))}
             </Form.Select>
           </div>
-          <div className="col-md-6 text-md-end" style={{ fontSize: '0.8rem' }}>
-            <div className="mt-2 d-inline-block mb-2" style={{ fontSize: '0.8rem' }}>
+          <div className="col-md-6 text-md-end" style={{ fontSize: "0.8rem" }}>
+            <div
+              className="mt-2 d-inline-block mb-2"
+              style={{ fontSize: "0.8rem" }}
+            >
               <Button
                 variant="outline-secondary"
                 size="sm"
@@ -132,13 +159,13 @@ export default function SalesListPage() {
                 size="sm"
                 onClick={() => navigate("/sales/add")}
                 style={{
-                  backgroundColor: '#2FA64F',
-                  borderColor: '#2FA64F',
-                  color: '#fff',
-                  padding: '0.25rem 0.5rem',
-                  fontSize: '0.8rem',
-                  minWidth: '90px',
-                  height: '28px',
+                  backgroundColor: "#2FA64F",
+                  borderColor: "#2FA64F",
+                  color: "#fff",
+                  padding: "0.25rem 0.5rem",
+                  fontSize: "0.8rem",
+                  minWidth: "90px",
+                  height: "28px",
                 }}
               >
                 + Add New
@@ -158,30 +185,59 @@ export default function SalesListPage() {
           <table className="table custom-table align-middle mb-0">
             <thead style={{ backgroundColor: "#2E3A59", color: "white" }}>
               <tr>
-                <th style={{
-                  width: "70px", textAlign: "center", backgroundColor: "#2E3A59",
-                  color: "white",
-                  cursor: "pointer"
-                }}>S.No</th>
+                <th
+                  style={{
+                    width: "70px",
+                    textAlign: "center",
+                    backgroundColor: "#2E3A59",
+                    color: "white",
+                    cursor: "pointer",
+                  }}
+                >
+                  S.No
+                </th>
                 {[
                   { label: "Customer", field: "customer_name" },
                   { label: "Invoice No", field: "invoice_no" },
                   { label: "Shipment", field: "shipment_date" },
                   { label: "Delivery", field: "delivery_date" },
-                  // { label: "Batch", field: "batch_name" },
                   { label: "Category", field: "category_name" },
                   { label: "Qty", field: "quantity" },
                 ].map(({ label, field }) => (
                   <th
                     key={field}
                     onClick={() => handleSort(field)}
-                    style={{ cursor: "pointer", backgroundColor: "#2E3A59", color: "white" }}
+                    style={{
+                      cursor: "pointer",
+                      backgroundColor: "#2E3A59",
+                      color: "white",
+                    }}
                   >
-                    {label} {sortField === field && (sortDirection === "asc" ? "▲" : "▼")}
+                    {label}{" "}
+                    {sortField === field &&
+                      (sortDirection === "asc" ? "▲" : "▼")}
                   </th>
                 ))}
-                <th style={{ cursor: "pointer", backgroundColor: "#2E3A59", color: "white", paddingLeft: '30px' }}>Action</th>
-                <th style={{ cursor: "pointer", backgroundColor: "#2E3A59", color: "white", paddingLeft: '30px' }}>Delivery Challan</th>
+                <th
+                  style={{
+                    cursor: "pointer",
+                    backgroundColor: "#2E3A59",
+                    color: "white",
+                    paddingLeft: "30px",
+                  }}
+                >
+                  Action
+                </th>
+                <th
+                  style={{
+                    cursor: "pointer",
+                    backgroundColor: "#2E3A59",
+                    color: "white",
+                    paddingLeft: "30px",
+                  }}
+                >
+                  Delivery Challan
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -204,21 +260,27 @@ export default function SalesListPage() {
               ) : (
                 paginatedData.map((item, index) => (
                   <tr key={item.id}>
-                    <td className="text-center">{(page - 1) * perPage + index + 1}</td>
+                    <td className="text-center">
+                      {(page - 1) * perPage + index + 1}
+                    </td>
                     <td>{item.customer_name}</td>
                     <td>{item.invoice_no}</td>
                     <td>{item.shipment_date}</td>
                     <td>{item.delivery_date}</td>
-                    {/* <td>{item.batch_name}</td> */}
                     <td>{item.category_name}</td>
                     <td>{item.quantity}</td>
                     <td className="text-center" style={{ width: "130px" }}>
                       <div className="d-flex justify-content-center">
                         <ActionButtons
-                          onPdf={() => window.open(`${API_BASE_URL}/sales/${item.id}/invoices`, "_blank")}
+                          onPdf={() =>
+                            window.open(
+                              `${API_BASE_URL}/sales/${item.id}/invoices`,
+                              "_blank"
+                            )
+                          }
                           onEdit={() => navigate(`/sales/edit/${item.id}`)}
                           onDelete={() => handleDelete(item.id)}
-                          onWarranty={() => navigate(`/sales/warranty/${item.id}`)}
+                          onWarranty={() => handleWarranty(item.id)}
                         />
                       </div>
                     </td>
@@ -227,7 +289,10 @@ export default function SalesListPage() {
                         variant=""
                         size="sm"
                         onClick={() =>
-                          window.open(`${API_BASE_URL}/delivery-challan/${item.id}/pdf`, "_blank")
+                          window.open(
+                            `${API_BASE_URL}/delivery-challan/${item.id}/pdf`,
+                            "_blank"
+                          )
                         }
                         style={{ borderColor: "#2E3A59", color: "#2E3A59" }}
                       >
@@ -250,6 +315,74 @@ export default function SalesListPage() {
           />
         </div>
       </Card>
+
+      {/* Warranty Modal */}
+      <Modal
+        show={showWarrantyModal}
+        onHide={() => setShowWarrantyModal(false)}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            Warranty Details - Invoice #{selectedSale?.invoice_no}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedSale && (
+            <>
+              <p>
+                <strong>Customer:</strong> {selectedSale.customer?.name}
+              </p>
+              <p>
+                <strong>Shipment:</strong> {selectedSale.shipment_date}
+              </p>
+              <p>
+                <strong>Delivery:</strong> {selectedSale.delivery_date}
+              </p>
+
+              <Table bordered hover size="sm" className="mt-3">
+                <thead style={{ backgroundColor: "#2E3A59", color: "white" }}>
+                  <tr>
+                    <th>#</th>
+                    <th>Serial No</th>
+                    <th>Product</th>
+                    <th>Warranty Start</th>
+                    <th>Warranty End</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {warrantyData.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="text-center text-muted">
+                        No warranty records found
+                      </td>
+                    </tr>
+                  ) : (
+                    warrantyData.map((w, i) => (
+                      <tr key={i}>
+                        <td>{i + 1}</td>
+                        <td>{w.serial_no}</td>
+                        <td>{w.product_name}</td>
+                        <td>{w.start_date}</td>
+                        <td>{w.end_date}</td>
+                        <td>
+                          {w.active ? (
+                            <span className="badge bg-success">Active</span>
+                          ) : (
+                            <span className="badge bg-danger">Expired</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </>
+          )}
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }

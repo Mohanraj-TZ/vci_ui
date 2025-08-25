@@ -7,19 +7,20 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ProductModal from './ProductModal';
 import { API_BASE_URL } from '../api';
+import dayjs from 'dayjs';
 
 export default function AddNewSalePage() {
   const hasFetched = useRef(false);
   const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
-  const [batches, setBatches] = useState([]);
+  // const [batches, setBatches] = useState([]);
   const [categories, setCategories] = useState([]);
   const [serialError, setSerialError] = useState('');
   const [errors, setErrors] = useState({});
   const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
     customer_id: '',
-    batch_id: '',
+    // batch_id: '',
     category_id: '',
     quantity: '',
     from_serial: '',
@@ -28,7 +29,10 @@ export default function AddNewSalePage() {
     shipment_date: '',
     delivery_date: '',
     tracking_no: '',
-    notes: ''
+    notes: '',
+    warranty_start: '',
+    warranty_end: '',
+    warranty_status: ''
   });
   const [showModal, setShowModal] = useState(false);
   const [products, setProducts] = useState([]);
@@ -53,13 +57,15 @@ export default function AddNewSalePage() {
     const newFormErrors = {};
 
     if (!formData.customer_id) newFormErrors['customer_id'] = "Customer is required";
-    if (!formData.batch_id) newFormErrors['batch_id'] = "Batch is required";
+    // if (!formData.batch_id) newFormErrors['batch_id'] = "Batch is required";
     if (!formData.category_id) newFormErrors['category_id'] = "Category is required";
     if (!formData.quantity) newFormErrors['quantity'] = "Quantity is required";
     if (!formData.shipment_name) newFormErrors['shipment_name'] = "Shipment Name is required";
     if (!formData.shipment_date) newFormErrors['shipment_date'] = "Shipment Date is required";
     if (!formData.delivery_date) newFormErrors['delivery_date'] = "Delivery Date is required";
     if (!formData.tracking_no) newFormErrors['tracking_no'] = "Tracking Number is required";
+    if (!formData.warranty_start) newFormErrors['warranty_start'] = "Warranty start date is required";
+    if (!formData.warranty_end) newFormErrors['warranty_end'] = "Warranty end date is required";
 
     if (formData.serial_numbers.length === 0) {
       newFormErrors['serial_numbers'] = "Serial numbers are required";
@@ -89,10 +95,10 @@ export default function AddNewSalePage() {
 
 
   const handleAddClick = async () => {
-    if (!formData.batch_id || !formData.category_id) {
-      toast.error("Please select both Batch and Category first.");
-      return;
-    }
+    // if (!formData.batch_id || !formData.category_id) {
+    //   toast.error("Please select both Batch and Category first.");
+    //   return;
+    // }
 
     setShowModal(true);
     setLoadingProducts(true);
@@ -130,7 +136,7 @@ export default function AddNewSalePage() {
       .then(res => {
         if (res.data?.data) {
           setCustomers(res.data.data.customers);
-          setBatches(res.data.data.batches);
+          // setBatches(res.data.data.batches);
           setCategories(res.data.data.categories);
         }
       })
@@ -147,57 +153,67 @@ export default function AddNewSalePage() {
   }, []);
 
   const handleChange = async (e) => {
-    const { name, value } = e.target;
-    const updated = { ...formData, [name]: value };
-    setFormData(updated);
+  const { name, value } = e.target;
+  let updated = { ...formData, [name]: value };
 
-    if (formErrors[name]) {
-      setFormErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
+  // Remove field-specific errors
+  if (formErrors[name]) {
+    setFormErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[name];
+      return newErrors;
+    });
+  }
+
+  // Update warranty status if start or end date changed
+  if (name === 'warranty_start' || name === 'warranty_end') {
+    if (updated.warranty_start && updated.warranty_end) {
+      const today = new Date();
+      const start = new Date(updated.warranty_start);
+      const end = new Date(updated.warranty_end);
+
+      updated.warranty_status = today >= start && today <= end ? 'active' : 'expired';
+    } else {
+      updated.warranty_status = '';
     }
+  }
 
-    if (['quantity', 'from_serial', 'batch_id', 'category_id'].includes(name)) {
-      const { quantity, from_serial, batch_id, category_id } = updated;
+  setFormData(updated);
 
-      if (quantity && batch_id && category_id) {
-        try {
-          const payload = {
-            quantity,
-            batch_id,
-            category_id
-          };
+  // Fetch serials if relevant fields changed
+  if (['quantity', 'from_serial', 'category_id'].includes(name)) {
+    const { quantity, from_serial, category_id } = updated;
 
-          if (from_serial?.trim() !== '') {
-            payload.from_serial = from_serial;
-          }
+    if (quantity && category_id) {
+      try {
+        const payload = { quantity, category_id };
+        if (from_serial?.trim() !== '') payload.from_serial = from_serial;
 
-          const response = await axios.post(`${API_BASE_URL}/products/serials`, payload);
-          const serials = response.data?.data || [];
+        const response = await axios.post(`${API_BASE_URL}/products/serials`, payload);
+        const serials = response.data?.data || [];
 
-          setFormData(prev => ({
-            ...prev,
-            serial_numbers: serials,
-          }));
+        setFormData(prev => ({
+          ...prev,
+          serial_numbers: serials,
+          quantity: serials.length // always sync quantity with serials
+        }));
 
-          if (serials.length === 0) {
-            setSerialError("No serial numbers found.");
-          } else if (serials.length < parseInt(quantity)) {
-            setSerialError(`Only ${serials.length} products available, but you requested ${quantity}.`);
-          } else {
-            setSerialError("");
-          }
-
-        } catch (err) {
-          console.error('Error fetching serials:', err);
-          setSerialError("Failed to load serial numbers.");
-          setFormData(prev => ({ ...prev, serial_numbers: [] }));
+        if (serials.length === 0) {
+          setSerialError("No serial numbers found.");
+        } else if (serials.length < parseInt(quantity)) {
+          setSerialError(`Only ${serials.length} products available, but you requested ${quantity}.`);
+        } else {
+          setSerialError("");
         }
+      } catch (err) {
+        console.error('Error fetching serials:', err);
+        setSerialError("Failed to load serial numbers.");
+        setFormData(prev => ({ ...prev, serial_numbers: [], quantity: 0 }));
       }
     }
-  };
+  }
+};
+
 
   const handleCustomerChange = (selected) => {
     const value = selected?.value || '';
@@ -338,7 +354,7 @@ export default function AddNewSalePage() {
             </Form.Group>
           </Col>
 
-          <Col md={4}>
+          {/* <Col md={4}>
             <Form.Label>Batch</Form.Label>
             <Form.Select size="sm" name="batch_id" value={formData.batch_id} onChange={handleChange} style={{ boxShadow: 'none', borderColor: '#ced4da' }}
               isInvalid={!!formErrors['batch_id']}
@@ -353,7 +369,7 @@ export default function AddNewSalePage() {
             <Form.Control.Feedback type="invalid">
               {formErrors['batch_id']}
             </Form.Control.Feedback>
-          </Col>
+          </Col> */}
 
           <Col md={4}>
             <Form.Label>Category</Form.Label>
@@ -398,6 +414,50 @@ export default function AddNewSalePage() {
             <Form.Control.Feedback type="invalid">
               {formErrors['shipment_name']}
             </Form.Control.Feedback>
+          </Col>
+        </Row>
+
+        <Row className="mb-3 g-2">
+          <Col md={4}>
+            <Form.Label>Warranty Start</Form.Label>
+            <Form.Control
+              size="sm"
+              type="date"
+              name="warranty_start"
+              value={formData.warranty_start}
+              onChange={handleChange}
+              isInvalid={!!formErrors['warranty_start']}
+              style={{ boxShadow: 'none', borderColor: '#ced4da' }}
+            />
+            <Form.Control.Feedback type="invalid">{formErrors['warranty_start']}</Form.Control.Feedback>
+          </Col>
+          <Col md={4}>
+            <Form.Label>Warranty End</Form.Label>
+            <Form.Control
+              size="sm"
+              type="date"
+              name="warranty_end"
+              value={formData.warranty_end}
+              onChange={handleChange}
+              isInvalid={!!formErrors['warranty_end']}
+              style={{ boxShadow: 'none', borderColor: '#ced4da' }}
+            />
+            <Form.Control.Feedback type="invalid">{formErrors['warranty_end']}</Form.Control.Feedback>
+          </Col>
+          <Col md={4}>
+            <Form.Label>Warranty Status</Form.Label>
+            <Form.Control
+              size="sm"
+              type="text"
+              name="warranty_status"
+              value={formData.warranty_status}
+              readOnly
+              style={{
+                boxShadow: 'none',
+                borderColor: formData.warranty_status === 'active' ? '#28a745' : '#dc3545',
+                color: formData.warranty_status === 'active' ? '#28a745' : '#dc3545'
+              }}
+            />
           </Col>
         </Row>
 

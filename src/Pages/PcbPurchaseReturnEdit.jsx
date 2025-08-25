@@ -127,9 +127,9 @@ export default function EditPurchaseReturnPage() {
   <Col md={6}>
     <span className="text-dark fw-semibold">Vendor:</span> {purchaseData.vendor_name}
   </Col>
-  <Col md={6}>
+  {/* <Col md={6}>
     <span className="text-dark fw-semibold">Category:</span> {purchaseData.category_name}
-  </Col>
+  </Col> */}
   <Col md={6}>
     <span className="text-dark fw-semibold">Invoice No:</span> {purchaseData.invoice_no}
   </Col>
@@ -155,65 +155,56 @@ export default function EditPurchaseReturnPage() {
             </Row>
 
             {/* Returned Items Table */}
-            {returnItems.length > 0 && (
-              <section className="mb-4">
-                <h6 className="fw-semibold mb-2">Returned Product Serials</h6>
-                <div className="table-responsive">
-                  <Table bordered hover size="sm" className="align-middle">
-                    <thead className="table-light">
-                      <tr>
-                        <th>#</th>
-                        <th>Serial No</th>
-                        <th>Remark</th>
-                        {/* <th>Quality Check</th> */}
-                        <th className="text-center">Returned?</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {returnItems.map((item, idx) => (
-                        <tr key={item.id}>
-                          <td>{idx + 1}</td>
-                          <td>{item.serial_no}</td>
-                          <td>
-                            <Form.Control
-                              size="sm"
-                              value={item.remark}
-                              onChange={(e) => {
-                                const updated = [...returnItems];
-                                updated[idx].remark = e.target.value;
-                                setReturnItems(updated);
-                              }}
-                            />
-                          </td>
-                          {/* <td>
-                            <Form.Control
-                              size="sm"
-                              value={item.quality_check}
-                              onChange={(e) => {
-                                const updated = [...returnItems];
-                                updated[idx].quality_check = e.target.value;
-                                setReturnItems(updated);
-                              }}
-                            />
-                          </td> */}
-                          <td className="text-center">
-                            <Form.Check
-                              type="checkbox"
-                              checked={item.selected || false}
-                              onChange={(e) => {
-                                const updated = [...returnItems];
-                                updated[idx].selected = e.target.checked;
-                                setReturnItems(updated);
-                              }}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-              </section>
-            )}
+            {/* Returned Items Table */}
+{returnItems.length > 0 && (
+  <section className="mb-4">
+    <h6 className="fw-semibold mb-2">Returned Product Serials</h6>
+    <div className="table-responsive">
+      <Table bordered hover size="sm" className="align-middle">
+        <thead className="table-light">
+          <tr>
+            <th>#</th>
+            <th>Serial No</th>
+            <th>Category</th> {/* Added Category Column */}
+            <th>Remark</th>
+            <th className="text-center">Returned?</th>
+          </tr>
+        </thead>
+        <tbody>
+          {returnItems.map((item, idx) => (
+            <tr key={item.id}>
+              <td>{idx + 1}</td>
+              <td>{item.serial_no}</td>
+              <td>{item.category_name}</td> {/* Show category for each row */}
+              <td>
+                <Form.Control
+                  size="sm"
+                  value={item.remark}
+                  onChange={(e) => {
+                    const updated = [...returnItems];
+                    updated[idx].remark = e.target.value;
+                    setReturnItems(updated);
+                  }}
+                />
+              </td>
+              <td className="text-center">
+                <Form.Check
+                  type="checkbox"
+                  checked={item.selected || false}
+                  onChange={(e) => {
+                    const updated = [...returnItems];
+                    updated[idx].selected = e.target.checked;
+                    setReturnItems(updated);
+                  }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
+  </section>
+)}
 
             {/* Buttons */}
             <div className="d-flex justify-content-end gap-2 mt-3">

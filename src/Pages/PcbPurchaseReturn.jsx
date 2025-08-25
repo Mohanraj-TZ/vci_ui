@@ -87,7 +87,7 @@ export default function PcbPurchaseReturn() {
     .filter((r) =>
       r.vendor_name?.toLowerCase().includes(search.toLowerCase()) ||
       // r.batch_name?.toLowerCase().includes(search.toLowerCase()) ||
-      r.category_name?.toLowerCase().includes(search.toLowerCase()) ||
+      // r.category_name?.toLowerCase().includes(search.toLowerCase()) ||
       r.invoice_no?.toLowerCase().includes(search.toLowerCase()) ||
       r.invoice_date?.toLowerCase().includes(search.toLowerCase()) ||
       r.quantity?.toString().includes(search.toLowerCase())
@@ -191,12 +191,12 @@ export default function PcbPurchaseReturn() {
                     color: "white" }}>
                   Batch{renderSortArrow("batch_name")}
                 </th> */}
-                <th onClick={() => handleSort("category_name")} style={{
+                {/* <th onClick={() => handleSort("category_name")} style={{
                   cursor: "pointer", backgroundColor: "#2E3A59",
                   color: "white"
                 }}>
                   Category{renderSortArrow("category_name")}
-                </th>
+                </th> */}
                 <th onClick={() => handleSort("invoice_no")} style={{
                   cursor: "pointer", backgroundColor: "#2E3A59",
                   color: "white"
@@ -243,7 +243,7 @@ export default function PcbPurchaseReturn() {
                     </td>
                     <td>{item.vendor_name}</td>
                     {/* <td>{item.batch_name}</td> */}
-                    <td>{item.category_name}</td>
+                    {/* <td>{item.category_name}</td> */}
                     <td>{item.invoice_no}</td>
                     <td>{item.invoice_date}</td>
                     <td>{item.quantity}</td>

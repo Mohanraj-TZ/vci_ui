@@ -42,7 +42,7 @@ export default function SaleReturnDetails() {
         const data = res.data;
         setFormData({
           customer_name: data.customer_name,
-          batch: data.batch,
+          // batch: data.batch,
           category: data.category,
           quantity: data.quantity,
           from_serial_no: data.from_serial_no,
@@ -135,12 +135,12 @@ export default function SaleReturnDetails() {
               <Form.Control readOnly value={formData.customer_name} className="bg-light border-0 text-muted" />
             </Form.Group>
           </Col>
-          <Col md={4}>
+          {/* <Col md={4}>
             <Form.Group>
               <Form.Label>Batch</Form.Label>
               <Form.Control readOnly value={formData.batch} className="bg-light border-0 text-muted" />
             </Form.Group>
-          </Col>
+          </Col> */}
           <Col md={4}>
             <Form.Group>
               <Form.Label>Category</Form.Label>

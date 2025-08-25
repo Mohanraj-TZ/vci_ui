@@ -4,8 +4,9 @@ import Select from 'react-select';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { API_BASE_URL } from "../api";
+
 
 export default function SaleReturns() {
     const [invoices, setInvoices] = useState([]);
@@ -15,7 +16,12 @@ export default function SaleReturns() {
     const [reason, setReason] = useState('');
     const [saleInfo, setSaleInfo] = useState(null);
 
+       const [loadingInvoices, setLoadingInvoices] = useState(false);
+    const [loadingDetails, setLoadingDetails] = useState(false);
+
     const navigate = useNavigate();
+       const location = useLocation();
+
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem('authToken');
@@ -53,6 +59,10 @@ export default function SaleReturns() {
             .catch(() => toast.error('Failed to load invoices'));
     }, [navigate]);
 
+
+
+    
+
     const handleInvoiceChange = (option) => {
         setSelectedInvoice(option);
         setSerials([]);
@@ -70,7 +80,7 @@ export default function SaleReturns() {
 
                 setSaleInfo({
                     customer_name: res.data.customer.first_name,
-                    batch_name: res.data.batch,
+                    // batch_name: res.data.batch,
                     category_name: res.data.category,
                     shipment_name: res.data.shipment_name,
                     shipment_date: res.data.shipment_date,
@@ -79,6 +89,17 @@ export default function SaleReturns() {
             })
             .catch(() => toast.error('No serial numbers found for this invoice'));
     };
+
+
+    useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const invoiceFromUrl = params.get("invoice") || "";
+    if (invoiceFromUrl) {
+        const option = { label: invoiceFromUrl, value: invoiceFromUrl };
+        setSelectedInvoice(option);
+        handleInvoiceChange(option);  // ✅ use existing function
+    }
+}, [location.search]);
 
     const handleCheckboxChange = (idx) => {
         const updated = [...serials];
@@ -180,9 +201,9 @@ export default function SaleReturns() {
                                         <Col md={6}>
                                             <span className="text-dark fw-semibold">Customer:</span> {saleInfo?.customer_name || ''}
                                         </Col>
-                                        <Col md={6}>
+                                        {/* <Col md={6}>
                                             <span className="text-dark fw-semibold">Batch:</span> {saleInfo?.batch_name || ''}
-                                        </Col>
+                                        </Col> */}
                                         <Col md={6}><span className="text-dark fw-semibold">Category:</span>{saleInfo?.category_name || ''}</Col>
                                         <Col md={6}>
                                             <span className="text-dark fw-semibold">Shipment Name:</span> {saleInfo?.shipment_name || ''}

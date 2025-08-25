@@ -52,6 +52,11 @@ export default function PurchaseSparepartsPage() {
     const tableRef = useRef(null);
     const dataTableInstance = useRef(null);
     const navigate = useNavigate(); // Initialize the useNavigate hook
+const [filterFromDate, setFilterFromDate] = useState("");
+const [filterToDate, setFilterToDate] = useState("");
+const [filterInvoiceNo, setFilterInvoiceNo] = useState("");
+const [filterSparepartName, setFilterSparepartName] = useState("");
+const [filteredSpareparts, setFilteredSpareparts] = useState([]);
 
     useEffect(() => {
         const authToken = localStorage.getItem('authToken');
@@ -65,55 +70,95 @@ export default function PurchaseSparepartsPage() {
         }
     }, [navigate]);
 
+// Apply filters
+const applyFilters = () => {
+    let filtered = [...spareparts];
 
-const handleDownloadExcel = async () => {
-  try {
-    const response = await axios.get(
-      `${API_BASE_URL}/excelreportpurchase`,
-      {
-        responseType: "blob", // Important: tells axios to handle the response as binary data
-      }
+    if (filterFromDate) {
+        filtered = filtered.filter(p => new Date(p.invoice_date) >= new Date(filterFromDate));
+    }
+    if (filterToDate) {
+        filtered = filtered.filter(p => new Date(p.invoice_date) <= new Date(filterToDate));
+    }
+    if (filterInvoiceNo) {
+        filtered = filtered.filter(p => String(p.invoice_no).includes(filterInvoiceNo));
+    }
+    if (filterSparepartName) {
+        filtered = filtered.filter(p =>
+            p.items?.some(item =>
+                availableSpareparts.find(sp => sp.id === item.sparepart_id)?.name?.toLowerCase()?.includes(filterSparepartName.toLowerCase())
+            )
+        );
+    }
+
+    setFilteredSpareparts(filtered);
+};
+
+useEffect(() => {
+    applyFilters();
+}, [filterFromDate, filterToDate, filterInvoiceNo, filterSparepartName, spareparts, availableSpareparts]);
+
+useEffect(() => {
+    if (!filteredSpareparts || !Array.isArray(filteredSpareparts)) return;
+
+    const searched = filteredSpareparts.filter(purchase =>
+        getVendorNameById(purchase.vendor_id)?.toLowerCase().includes(search.toLowerCase()) ||
+        String(purchase.invoice_no).toLowerCase().includes(search.toLowerCase())
     );
 
-    // Create a blob from the response data
-    const blob = new Blob([response.data], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    // Create a temporary URL for the blob
-    const url = window.URL.createObjectURL(blob);
-    // Create a link element
-    const a = document.createElement("a");
-    a.style.display = "none";
-    a.href = url;
-    a.download = "damaged_items.xlsx"; // Suggested filename
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    toast.success("Excel report downloaded successfully!");
-  } catch (error) {
-    console.error("Error downloading Excel:", error);
-    toast.error("Failed to download Excel report.");
-  }
+    setFilteredSpareparts(searched);
+}, [search]);
+
+useEffect(() => {
+    applyFilters();
+}, [filterFromDate, filterToDate, filterInvoiceNo, filterSparepartName, spareparts, availableSpareparts]);
+
+const handleDownloadExcel = async () => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/excelreportpurchase`, {
+            responseType: "blob",
+            params: {
+                from_date: filterFromDate,
+                to_date: filterToDate,
+                invoice_no: filterInvoiceNo,
+                sparepart_name: filterSparepartName
+            }
+        });
+
+        const blob = new Blob([response.data], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "sparepart_purchases.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        toast.success("Excel report downloaded successfully!");
+    } catch (error) {
+        console.error("Error downloading Excel:", error);
+        toast.error("Failed to download Excel report.");
+    }
 };
 
 const handleDownloadPdf = async () => {
     try {
-        const response = await axios.get(
-            `${API_BASE_URL}/purchsepdf`,
-            {
-                responseType: 'blob', // Important: tells axios to handle the response as binary data
+        const response = await axios.get(`${API_BASE_URL}/purchasepdf`, {
+            responseType: 'blob',
+            params: {
+                from_date: filterFromDate,
+                to_date: filterToDate,
+                invoice_no: filterInvoiceNo,
+                sparepart_name: filterSparepartName
             }
-        );
+        });
 
-        // Create a blob from the response data
         const blob = new Blob([response.data], { type: 'application/pdf' });
-        // Create a temporary URL for the blob
         const url = window.URL.createObjectURL(blob);
-        // Create a link element
         const a = document.createElement('a');
-        a.style.display = 'none';
         a.href = url;
-        a.download = 'sparepart_purchases.pdf'; // Suggested filename
+        a.download = 'sparepart_purchases.pdf';
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -122,7 +167,9 @@ const handleDownloadPdf = async () => {
         console.error("Error downloading PDF:", error);
         toast.error("Failed to download PDF report.");
     }
-}
+};
+
+
 
     const getBlueBorderStyles = (value, isInvalid) => {
         const baseStyle = {
@@ -141,32 +188,6 @@ const handleDownloadPdf = async () => {
         }
         return baseStyle;
     };
-
-    // const getTableInputStyles = (value, isInvalid) => {
-    //     const baseTableInputStyle = {
-    //         height: "40px",
-    //         backgroundColor: "transparent",
-    //         padding: "0.375rem 0.75rem",
-    //         border: "1px solid #ced4da",
-    //         fontFamily: "Product Sans, sans-serif",
-    //         fontSize: "14px",
-    //         borderRadius: "0.25rem",
-    //         width: "100%",
-    //     };
-    //     if (isInvalid) {
-    //         return {
-    //             ...baseTableInputStyle,
-    //             borderColor: "#dc3545",
-    //             boxShadow: "0 0 0 0.25rem rgba(220, 53, 69, 0.25)",
-    //         };
-    //     } else if (value) {
-    //         return {
-    //             ...baseTableInputStyle,
-    //             boxShadow: "0 0 0 0.25rem rgba(39, 140, 88, 0.25)",
-    //         };
-    //     }
-    //     return baseTableInputStyle;
-    // };
 
     const customSelectStyle = {
         backgroundRepeat: "no-repeat",
@@ -335,18 +356,6 @@ const handleDownloadPdf = async () => {
             return newErrors;
         });
     };
-
-    // const handleDateChange = e => {
-    //     const { value } = e.target;
-    //     setInvoiceDate(value);
-    //     setFormErrors(prev => ({ ...prev, invoice_date: "" }));
-    // };
-
-    // const handleReturnDateChange = e => {
-    //     const { value } = e.target;
-    //     setReturnDate(value);
-    //     setFormErrors(prev => ({ ...prev, return_date: "" }));
-    // };
 
 const validateForm = (payload, items, isReturnForm = false) => {
     let errors = {};
@@ -647,28 +656,34 @@ const handleFormSubmit = async (e) => {
             setSortDirection("asc");
         }
     };
+useEffect(() => {
+    if (!spareparts || !Array.isArray(spareparts)) return;
 
-    const filteredSpareparts = spareparts.filter(purchase =>
-        getVendorNameById(purchase.vendor_id).toLowerCase().includes(search.toLowerCase()) ||
-        purchase.invoice_no.toLowerCase().includes(search.toLowerCase())
+    const filtered = spareparts.filter(purchase =>
+        getVendorNameById(purchase.vendor_id)?.toLowerCase().includes(search.toLowerCase()) ||
+        String(purchase.invoice_no).toLowerCase().includes(search.toLowerCase())
     );
 
-    const sortedSpareparts = [...filteredSpareparts].sort((a, b) => {
-        if (!sortField) return 0;
-        let valA, valB;
-        if (sortField === "vendor_name") {
-            valA = getVendorNameById(a.vendor_id).toLowerCase();
-            valB = getVendorNameById(b.vendor_id).toLowerCase();
-        } else {
-            valA = a[sortField];
-            valB = b[sortField];
-        }
-        if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-        if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-        return 0;
-    });
+    setFilteredSpareparts(filtered);
+}, [search, spareparts]);
+const sortedSpareparts = [...filteredSpareparts].sort((a, b) => {
+    if (!sortField) return 0;
+    let valA, valB;
+    if (sortField === "vendor_name") {
+        valA = getVendorNameById(a.vendor_id).toLowerCase();
+        valB = getVendorNameById(b.vendor_id).toLowerCase();
+    } else {
+        valA = a[sortField];
+        valB = b[sortField];
+    }
+    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+});
 
-    const paginatedSpareparts = sortedSpareparts.slice((page - 1) * perPage, page * perPage);
+const paginatedSpareparts = sortedSpareparts.slice((page - 1) * perPage, page * perPage);
+
+
 
     return (
         <div className="px-4 " style={{ fontSize: "0.75rem" }}>
@@ -693,65 +708,107 @@ const handleFormSubmit = async (e) => {
                             ))}
                         </Form.Select>
                     </div>
-                    <div className="col-md-6 text-md-end" style={{ fontSize: '0.8rem' }}>
-                        <div className="mt-2 d-inline-block mb-2" style={{ fontSize: '0.8rem' }}>
-                            <Button
-                                variant="outline-secondary"
-                                size="sm"
-                                className="me-2"
-                                onClick={fetchAllData}
-                            >
-                                <i className="bi bi-arrow-clockwise"></i>
-                            </Button>
-                            <Button
-                                size="sm"
-                                onClick={() => handleShowForm()}
-                                style={{
-                                    backgroundColor: '#2FA64F',
-                                    borderColor: '#2FA64F',
-                                    color: '#fff',
-                                    padding: '0.25rem 0.5rem',
-                                    fontSize: '0.8rem',
-                                    minWidth: '90px',
-                                    height: '28px',
-                                }}
-                            >
-                                + Add New
-                            </Button>
-                              <Button
-                                            size="sm"
-                                            onClick={handleDownloadPdf}
-                                            className="ms-2"
-                                            style={{
-                                                backgroundColor: '#dc3545',
-                                                borderColor: '#dc3545',
-                                                color: '#fff',
-                                                padding: '0.25rem 0.5rem',
-                                                fontSize: '0.8rem',
-                                                minWidth: '90px',
-                                                height: '28px',
-                                            }}
-                                        >
-                                            <i className="bi bi-file-earmark-pdf"></i> Download PDF
-                                        </Button>
-                                        <Button
-                                            variant="success"
-                                            size="sm"
-                                            onClick={handleDownloadExcel}
-                                            style={{ color: "white" }}
-                                            className="ms-2"
-                                        >
-                                            <i className="bi bi-file-earmark-excel"></i> Excel
-                                        </Button>
-                        </div>
-                        <Search
-                            search={search}
-                            setSearch={setSearch}
-                            perPage={perPage}
-                            setPerPage={setPerPage}
-                            setPage={setPage}
-                        />
-                    </div>
+<div className="col-md-12">
+  {/* Top right buttons */}
+  <div className="d-flex justify-content-end align-items-center mb-3 flex-wrap gap-2">
+    <Button
+      variant="outline-secondary"
+      size="sm"
+      onClick={fetchAllData}
+    >
+      <i className="bi bi-arrow-clockwise"></i>
+    </Button>
+
+    <Button
+      size="sm"
+      onClick={() => handleShowForm()}
+      style={{
+        backgroundColor: '#2FA64F',
+        borderColor: '#2FA64F',
+        color: '#fff',
+        minWidth: '90px',
+        height: '28px',
+        fontSize: '0.8rem',
+      }}
+    >
+      + Add New
+    </Button>
+
+    <Button
+      size="sm"
+      onClick={handleDownloadPdf}
+      style={{
+        backgroundColor: '#dc3545',
+        borderColor: '#dc3545',
+        color: '#fff',
+        minWidth: '90px',
+        height: '28px',
+        fontSize: '0.8rem',
+      }}
+    >
+      <i className="bi bi-file-earmark-pdf"></i> Download PDF
+    </Button>
+
+    <Button
+      variant="success"
+      size="sm"
+      onClick={handleDownloadExcel}
+    >
+      <i className="bi bi-file-earmark-excel"></i> Excel
+    </Button>
+  </div>
+
+  {/* Filter inputs */}
+<div className="d-flex flex-wrap gap-2 mb-3">
+  <Form.Control
+    type="date"
+    value={filterFromDate}
+    onChange={e => setFilterFromDate(e.target.value)}
+    placeholder="From Date"
+    style={{ width: '150px' }}
+  />
+  <Form.Control
+    type="date"
+    value={filterToDate}
+    onChange={e => setFilterToDate(e.target.value)}
+    placeholder="To Date"
+    style={{ width: '150px' }}
+  />
+  <Form.Control
+    type="text"
+    value={filterInvoiceNo}
+    onChange={e => setFilterInvoiceNo(e.target.value)}
+    placeholder="Invoice No."
+    style={{ width: '180px' }}
+  />
+  <Form.Control
+    type="text"
+    value={filterSparepartName}
+    onChange={e => setFilterSparepartName(e.target.value)}
+    placeholder="Spare Part Name"
+    style={{ width: '200px' }}
+  />
+  <Button variant="secondary" onClick={() => {
+    setFilterFromDate("");
+    setFilterToDate("");
+    setFilterInvoiceNo("");
+    setFilterSparepartName("");
+    applyFilters();
+  }}>
+    Clear
+  </Button>
+</div>
+
+
+  {/* Search Component */}
+  <Search
+    search={search}
+    setSearch={setSearch}
+    perPage={perPage}
+    setPerPage={setPerPage}
+    setPage={setPage}
+  />
+</div>
                 </div>
                 <div className="table-responsive">
                     <table ref={tableRef} className=" custom-table table align-middle mb-0">
@@ -806,7 +863,7 @@ const handleFormSubmit = async (e) => {
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedSpareparts.map((purchase, index) => (
+paginatedSpareparts.map((purchase, index) => (
                                     <tr key={purchase.id}>
                                         <td className="text-center">{(page - 1) * perPage + index + 1}</td>
                                         <td>{getVendorNameById(purchase.vendor_id)}</td>

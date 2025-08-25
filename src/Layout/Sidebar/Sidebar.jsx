@@ -402,12 +402,28 @@ export default function Sidebar({ collapsed }) {
 <div className="sidebar-link-titles">{!collapsed && "Service"}</div>
 
 {/* Service VCI Dropdown */}
-<div className="mb-1 mt-2">
+{/* Service VCI Dropdown */}
+<div className="mb-2">
   <button
     onClick={() => setServiceVCIOpen(!serviceVCIOpen)}
     className="bg-transparent border-0 w-100 text-start p-0"
   >
-    <div className="d-flex align-items-center">
+    <div
+      className="d-flex align-items-center"
+      style={{
+        backgroundColor: isActive("serviceVCI") ? "#278C582E" : "transparent",
+        borderRadius: "8px",
+        padding: "12px",
+      }}
+    >
+      <img
+        src={isActive("serviceVCI") ? "ServiceVci_G.png" : "/ServiceVci_G.png"} 
+        alt="Service VCI"
+        style={{
+          width: "18px",
+          filter: isActive("serviceVCI") ? "none" : "brightness(0) invert(1)",
+        }}
+      />
       {!collapsed && (
         <span
           style={{
@@ -423,7 +439,6 @@ export default function Sidebar({ collapsed }) {
           className="ms-auto"
           style={{
             color: isActive("serviceVCI") ? "#28a745" : "#ffffff",
-            marginLeft: "auto",
           }}
         >
           {serviceVCIOpen ? "▾" : "▸"}
@@ -438,6 +453,7 @@ export default function Sidebar({ collapsed }) {
         href="#"
         onClick={(e) => {
           e.preventDefault();
+          setServiceVCIOpen(true);
           handleLinkClick("serviceProduct");
         }}
         className={subLinkClass("serviceProduct")}
@@ -445,22 +461,28 @@ export default function Sidebar({ collapsed }) {
         - Service Product
       </a>
 
-      {/* <a
-        href="#"
-        onClick={(e) => {
-          e.preventDefault();
-          handleLinkClick("urgentVCI", "/urgentvci"); // Pass the path here
-        }}
-        className={subLinkClass("urgentVCI")}
-      >
-        - Urgent VCI
-      </a> */}
+      {/* Urgent VCI (uncomment if needed) */}
+      {/* 
       <a
         href="#"
         onClick={(e) => {
           e.preventDefault();
+          setServiceVCIOpen(true);
+          handleLinkClick("urgentVCI", "/urgentvci");
+        }}
+        className={subLinkClass("urgentVCI")}
+      >
+        - Urgent VCI
+      </a>
+      */}
+
+      <a
+        href="#"
+        onClick={(e) => {
+          e.preventDefault();
+          setServiceVCIOpen(true);
           handleLinkClick("changedVCI");
-          navigate("/changedvci"); // 👈 points to ChangedVci.jsx
+          navigate("/changedvci"); // 👈 ChangedVci.jsx
         }}
         className={subLinkClass("changedVCI")}
       >
@@ -469,6 +491,7 @@ export default function Sidebar({ collapsed }) {
     </div>
   )}
 </div>
+
       
        {/* Basics */}
        <div className="sidebar-link-titles pb-2">{!collapsed && "Basics"}</div>

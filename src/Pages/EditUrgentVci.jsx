@@ -46,7 +46,6 @@ export default function UrgentVciEdit() {
 
   const MySwal = withReactContent(Swal);
 
-  // This useEffect handles authentication logic
   useEffect(() => {
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
@@ -71,13 +70,8 @@ export default function UrgentVciEdit() {
         axios.get(`${API_BASE_URL}/form-dropdowns`),
         axios.get(`${API_BASE_URL}/urgent-serials`),
         axios.get(`${API_BASE_URL}/defaultvci`),
-axios.get(`${API_BASE_URL}/urgentvci/${id}`)
+        axios.get(`${API_BASE_URL}/urgent-services/${id}`),
       ]);
-
-      const cats = categoriesResponse.data?.data?.categories || [];
-      setCategories(cats.map((c) => ({ value: c.id, label: c.category })));
-      setServiceVciSerials(serialsResponse.data.service_vci_serials || []);
-      setAllPcbSerials(pcbSerialsResponse.data?.vcis || []);
 
       const urgentData = urgentServiceResponse.data?.urgent_service;
       if (urgentData) {
@@ -99,7 +93,7 @@ axios.get(`${API_BASE_URL}/urgentvci/${id}`)
         // Populating the dynamic table with fetched items
         const formattedItems = urgentData.items.map((item) => ({
           ...item,
-          category_id: item.category_id.toString(), // Ensure category_id is a string for select
+          category_id: item.category_id?.toString() || "", // Ensure category_id is a string
           tested_date: item.tested_date || "",
           is_urgent: item.is_urgent ? "Yes" : "No",
         }));
@@ -108,6 +102,12 @@ axios.get(`${API_BASE_URL}/urgentvci/${id}`)
         toast.error("Urgent service record not found.");
         navigate("/urgent-vci-list");
       }
+
+      const cats = categoriesResponse.data?.data?.categories || [];
+      setCategories(cats.map((c) => ({ value: c.id, label: c.category })));
+      setServiceVciSerials(serialsResponse.data.service_vci_serials || []);
+      setAllPcbSerials(pcbSerialsResponse.data?.vcis || []);
+
     } catch (err) {
       if (err.response && err.response.status === 401) {
         toast.error("Session expired or unauthorized. Please log in again.");

@@ -85,7 +85,7 @@ export default function UrgentVci() {
       const cats = categoriesResponse.data?.data?.categories || [];
       setCategories(cats.map((c) => ({ value: c.id, label: c.category })));
       setServiceVciSerials(serialsResponse.data.service_vci_serials || []);
-      setAllPcbSerials(pcbSerialsResponse.data?.vcis || []);
+setAllPcbSerials(pcbSerialsResponse.data?.vcis || []);
     } catch (err) {
       if (err.response && err.response.status === 401) {
         toast.error("Session expired or unauthorized. Please log in again.");
@@ -558,17 +558,18 @@ const validateForm = () => {
                     </Form.Select>
                   </td>
                   <td>
-                    <Form.Select
-                      value={item.pcb_serial_no}
-                      onChange={(e) => handleItemChange(idx, "pcb_serial_no", e.target.value)}
-                    >
-                      <option value="">-- Select PCB Serial --</option>
-                      {allPcbSerials.map((pcb, pcbIdx) => (
-                        <option key={pcbIdx} value={pcb.serial_no}>
-                          {pcb.serial_no}
-                        </option>
-                      ))}
-                    </Form.Select>
+<Form.Select
+  value={item.pcb_serial_no}
+  onChange={(e) => handleItemChange(idx, "pcb_serial_no", e.target.value)}
+>
+  <option value="">-- Select PCB Serial --</option>
+  {allPcbSerials.map((pcb, pcbIdx) => (
+    <option key={pcbIdx} value={pcb.serial_number}>
+      {pcb.serial_number}
+    </option>
+  ))}
+</Form.Select>
+
                   </td>
                   <td className="text-center">
                     <Form.Check

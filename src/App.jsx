@@ -59,6 +59,7 @@ import AddSparepartDamage from "./Pages/AddSparepartDamage";
 
 import EditPcbDamage from "./Pages/EditPcbDamage";
 import EditSparepartDamage from "./Pages/EditSparepartDamage";
+import DefaultvciPage from "./Pages/DefaultVcipage";
 
 
 export default function App() {
@@ -171,6 +172,7 @@ export default function App() {
           <Route path="/damaged/add" element={<AddSparepartDamage />} />
 
              <Route path="/damaged-items/edit/:id" element={<EditPcbDamage />} />
+             <Route path="/DefaultvciPage" element={<DefaultvciPage />} />
 
                <Route path="/spareparts-damaged-items/:id/edit" element={<EditSparepartDamage />} />
 
